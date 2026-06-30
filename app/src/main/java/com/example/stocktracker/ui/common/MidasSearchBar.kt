@@ -29,7 +29,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
-// Uses BasicTextField to avoid the experimental M3 SearchBar API.
 @Composable
 fun MidasSearchBar(
     query: String,

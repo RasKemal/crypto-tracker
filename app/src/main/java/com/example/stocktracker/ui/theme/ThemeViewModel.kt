@@ -22,8 +22,6 @@ class ThemeViewModel @Inject constructor(
 
     private val key = booleanPreferencesKey("is_dark_theme")
 
-    // Eagerly started so the persisted value is available before the first frame,
-    // preventing a flash of the wrong theme on cold launch.
     val isDarkTheme: StateFlow<Boolean> = dataStore.data
         .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
         .map { prefs -> prefs[key] ?: true }

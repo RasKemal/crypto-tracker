@@ -20,10 +20,8 @@ import com.example.stocktracker.ui.theme.StockTrackerTheme
 import com.example.stocktracker.ui.theme.avatarPalette
 import kotlin.math.absoluteValue
 
-// Color is derived deterministically from the symbol hash so the same symbol
-// always shows the same color across recompositions and app restarts.
 @Composable
-fun StockAvatar(
+fun AssetAvatar(
     symbol: String,
     modifier: Modifier = Modifier,
     size: Dp = 46.dp,
@@ -46,11 +44,11 @@ fun StockAvatar(
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun StockAvatarPreview() {
+private fun AssetAvatarPreview() {
     StockTrackerTheme(darkTheme = true) {
         Box {
-            listOf("AAPL", "THYAO", "BTCUSDT", "LVWR", "EOSE").forEach {
-                StockAvatar(symbol = it, modifier = Modifier.size(46.dp))
+            listOf("BTC", "ETH", "SOL", "DOGE", "XRP").forEach {
+                AssetAvatar(symbol = it, modifier = Modifier.size(46.dp))
             }
         }
     }

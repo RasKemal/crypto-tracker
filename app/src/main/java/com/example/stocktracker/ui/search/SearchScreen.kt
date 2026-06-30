@@ -26,20 +26,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.stocktracker.ui.common.MarketFilterChips
+import com.example.stocktracker.ui.common.AssetListItem
 import com.example.stocktracker.ui.common.MidasSearchBar
-import com.example.stocktracker.ui.common.StockListItem
-import com.example.stocktracker.ui.model.StockUiModel
+import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
 fun SearchScreen(
-    onStockClick: (String) -> Unit,
+    onAssetClick: (id: String, symbol: String, name: String) -> Unit,
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
@@ -51,8 +51,9 @@ fun SearchScreen(
         isDarkTheme = isDarkTheme,
         onThemeToggle = onThemeToggle,
         onEvent = { event ->
-            if (event is SearchEvent.StockClicked) onStockClick(event.symbol)
-            else viewModel.onEvent(event)
+            if (event is SearchEvent.AssetClicked) {
+                onAssetClick(event.asset.id, event.asset.symbol, event.asset.name)
+            } else viewModel.onEvent(event)
         },
     )
 }
@@ -92,24 +93,19 @@ fun SearchContent(
         MidasSearchBar(
             query = uiState.query,
             onQueryChange = { onEvent(SearchEvent.QueryChanged(it)) },
+            placeholder = "Kripto ara",
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
         )
 
-        MarketFilterChips(
-            selectedFilter = uiState.selectedFilter,
-            onFilterSelected = { onEvent(SearchEvent.FilterSelected(it)) },
-        )
-
-        Spacer(Modifier.height(8.dp))
-
         Box(modifier = Modifier.fillMaxSize()) {
             when {
-                uiState.isLoading -> SearchLoadingView()
-                uiState.query.isEmpty() -> SearchIdleView()
-                uiState.stocks.isEmpty() -> SearchEmptyView(query = uiState.query)
-                else -> SearchResultsList(
-                    stocks = uiState.stocks,
-                    onStockClick = { onEvent(SearchEvent.StockClicked(it)) },
+                uiState.isLoading && uiState.assets.isEmpty() -> SearchLoadingView()
+                uiState.assets.isEmpty() && uiState.query.isNotBlank() ->
+                    SearchEmptyView(query = uiState.query)
+                else -> AssetList(
+                    header = if (uiState.isShowingPopular) "Popüler" else null,
+                    assets = uiState.assets,
+                    onAssetClick = { onEvent(SearchEvent.AssetClicked(it)) },
                     onWatchlistToggle = { onEvent(SearchEvent.WatchlistToggled(it)) },
                 )
             }
@@ -118,18 +114,32 @@ fun SearchContent(
 }
 
 @Composable
-private fun SearchResultsList(
-    stocks: List<StockUiModel>,
-    onStockClick: (String) -> Unit,
-    onWatchlistToggle: (StockUiModel) -> Unit,
+private fun AssetList(
+    header: String?,
+    assets: List<AssetUiModel>,
+    onAssetClick: (AssetUiModel) -> Unit,
+    onWatchlistToggle: (AssetUiModel) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        itemsIndexed(stocks, key = { _, stock -> stock.symbol }) { index, stock ->
-            StockListItem(
-                stock = stock,
-                onClick = { onStockClick(stock.symbol) },
-                onWatchlistToggle = { onWatchlistToggle(stock) },
-                showDivider = index < stocks.lastIndex,
+        if (header != null) {
+            item(key = "header") {
+                Text(
+                    text = header,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+                )
+            }
+        }
+        itemsIndexed(assets, key = { _, asset -> asset.id }) { index, asset ->
+            AssetListItem(
+                asset = asset,
+                onClick = { onAssetClick(asset) },
+                onWatchlistToggle = { onWatchlistToggle(asset) },
+                showDivider = index < assets.lastIndex,
             )
         }
     }
@@ -142,21 +152,6 @@ private fun SearchLoadingView() {
             color = MaterialTheme.colorScheme.onBackground,
             strokeWidth = 2.dp,
             modifier = Modifier.size(28.dp),
-        )
-    }
-}
-
-@Composable
-private fun SearchIdleView() {
-    Box(
-        modifier = Modifier.fillMaxWidth().padding(top = 80.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "Hisse senedi, ETF veya kripto ara",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
         )
     }
 }
@@ -182,7 +177,7 @@ private fun SearchEmptyView(query: String) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Farklı bir arama terimi veya piyasa filtresi deneyin",
+            text = "Farklı bir terim deneyin (örn. \"bitcoin\", \"sol\").",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -190,33 +185,39 @@ private fun SearchEmptyView(query: String) {
     }
 }
 
-private val previewStocks = listOf(
-    StockUiModel("SPCE", "SPCE", "Virgin Galactic Holdings Inc - Class A",  1, "\$4.78",   "%18,00", true,  false),
-    StockUiModel("RXT",  "RXT",  "Rackspace Technology",                     2, "\$2.14",   "-%5,97", false, true),
-    StockUiModel("LVWR", "LVWR", "LiveWire Group, Inc.",                     3, "\$1.32",   "%36,63", true,  false),
-    StockUiModel("USAS", "USAS", "Americas Gold and Silver",                 4, "\$0.92",   "%0,42",  true,  true),
-    StockUiModel("EOSE", "EOSE", "Eos Energy Enterprises Inc - Class A",     5, "\$3.40",   "-%2,63", false, false),
-    StockUiModel("AIIO", "AIIO", "Robo.ai Inc. Class B Ordinary Shares",     6, "\$5.10",   "%12,05", true,  false),
-    StockUiModel("ONDS", "ONDS", "Ondas Holdings Inc",                       7, "\$0.74",   "%2,02",  true,  false),
-    StockUiModel("POET", "POET", "POET Technologies Inc. Common Shares",     8, "\$4.22",   "-%6,81", false, false),
+private val previewPopular = listOf(
+    AssetUiModel("bitcoin",  "BTC",  "Bitcoin",  1, 67320.45, "\$67,320.45", "%2,45",  true,  false),
+    AssetUiModel("ethereum", "ETH",  "Ethereum", 2, 3512.10,  "\$3,512.10",  "%1,10",  true,  false),
+    AssetUiModel("solana",   "SOL",  "Solana",   3, 147.85,   "\$147.85",    "%3,78",  true,  true),
+    AssetUiModel("xrp",      "XRP",  "XRP",      4, 0.5512,   "\$0.5512",    "-%1,20", false, false),
+    AssetUiModel("dogecoin", "DOGE", "Dogecoin", 5, 0.1623,   "\$0.1623",    "-%2,10", false, false),
 )
 
-@Preview(
-    name = "Search — Results (Dark)",
-    showBackground = true,
-    backgroundColor = 0xFF000000,
-    showSystemUi = false,
+private val previewSearchResults = listOf(
+    AssetUiModel("bitcoin",     "BTC", "Bitcoin",      1, 67320.45, "\$67,320.45", "%2,45",  true,  true),
+    AssetUiModel("bitcoin-cash","BCH", "Bitcoin Cash", 2, 412.30,   "\$412.30",    "%0,85",  true,  false),
+    AssetUiModel("bitcoin-sv",  "BSV", "Bitcoin SV",   3, 58.12,    "\$58.12",     "-%1,30", false, false),
 )
+
+@Preview(name = "Search — Popular (Dark)", showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun SearchPopularDarkPreview() {
+    StockTrackerTheme(darkTheme = true) {
+        SearchContent(
+            uiState = SearchUiState(query = "", isShowingPopular = true, assets = previewPopular, isLoading = false),
+            isDarkTheme = true,
+            onThemeToggle = {},
+            onEvent = {},
+        )
+    }
+}
+
+@Preview(name = "Search — Results (Dark)", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun SearchResultsDarkPreview() {
     StockTrackerTheme(darkTheme = true) {
         SearchContent(
-            uiState = SearchUiState(
-                query = "space",
-                selectedFilter = com.example.stocktracker.domain.model.MarketFilter.ABD,
-                stocks = previewStocks,
-                isLoading = false,
-            ),
+            uiState = SearchUiState(query = "bitcoin", isShowingPopular = false, assets = previewSearchResults, isLoading = false),
             isDarkTheme = true,
             onThemeToggle = {},
             onEvent = {},
@@ -224,33 +225,12 @@ private fun SearchResultsDarkPreview() {
     }
 }
 
-@Preview(
-    name = "Search — Idle / No Query (Dark)",
-    showBackground = true,
-    backgroundColor = 0xFF000000,
-)
-@Composable
-private fun SearchIdleDarkPreview() {
-    StockTrackerTheme(darkTheme = true) {
-        SearchContent(
-            uiState = SearchUiState(query = ""),
-            isDarkTheme = true,
-            onThemeToggle = {},
-            onEvent = {},
-        )
-    }
-}
-
-@Preview(
-    name = "Search — Loading (Dark)",
-    showBackground = true,
-    backgroundColor = 0xFF000000,
-)
+@Preview(name = "Search — Loading (Dark)", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun SearchLoadingDarkPreview() {
     StockTrackerTheme(darkTheme = true) {
         SearchContent(
-            uiState = SearchUiState(query = "apple", isLoading = true),
+            uiState = SearchUiState(query = "btc", isLoading = true),
             isDarkTheme = true,
             onThemeToggle = {},
             onEvent = {},
@@ -258,16 +238,12 @@ private fun SearchLoadingDarkPreview() {
     }
 }
 
-@Preview(
-    name = "Search — No Results (Dark)",
-    showBackground = true,
-    backgroundColor = 0xFF000000,
-)
+@Preview(name = "Search — No Results (Dark)", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun SearchNoResultsDarkPreview() {
     StockTrackerTheme(darkTheme = true) {
         SearchContent(
-            uiState = SearchUiState(query = "xyzabc123", stocks = emptyList(), isLoading = false),
+            uiState = SearchUiState(query = "xyz123", isShowingPopular = false, assets = emptyList(), isLoading = false),
             isDarkTheme = true,
             onThemeToggle = {},
             onEvent = {},
@@ -275,47 +251,12 @@ private fun SearchNoResultsDarkPreview() {
     }
 }
 
-@Preview(
-    name = "Search — Results (Light)",
-    showBackground = true,
-    backgroundColor = 0xFFF2F2F7,
-)
+@Preview(name = "Search — Popular (Light)", showBackground = true, backgroundColor = 0xFFF2F2F7)
 @Composable
-private fun SearchResultsLightPreview() {
+private fun SearchPopularLightPreview() {
     StockTrackerTheme(darkTheme = false) {
         SearchContent(
-            uiState = SearchUiState(
-                query = "space",
-                selectedFilter = com.example.stocktracker.domain.model.MarketFilter.ABD,
-                stocks = previewStocks,
-                isLoading = false,
-            ),
-            isDarkTheme = false,
-            onThemeToggle = {},
-            onEvent = {},
-        )
-    }
-}
-
-@Preview(
-    name = "Search — BİST Filter (Light)",
-    showBackground = true,
-    backgroundColor = 0xFFF2F2F7,
-)
-@Composable
-private fun SearchBistLightPreview() {
-    StockTrackerTheme(darkTheme = false) {
-        SearchContent(
-            uiState = SearchUiState(
-                query = "thyao",
-                selectedFilter = com.example.stocktracker.domain.model.MarketFilter.BIST,
-                stocks = listOf(
-                    StockUiModel("THYAO.IS", "THYAO", "Türk Hava Yolları A.O.", 1, "₺312.00", "%4,20",  true,  true),
-                    StockUiModel("ASELS.IS", "ASELS", "Aselsan Elektronik",     2, "₺85.40",  "-%1,35", false, false),
-                    StockUiModel("EREGL.IS", "EREGL", "Ereğli Demir ve Çelik",  3, "₺48.20",  "%0,87",  true,  false),
-                ),
-                isLoading = false,
-            ),
+            uiState = SearchUiState(query = "", isShowingPopular = true, assets = previewPopular, isLoading = false),
             isDarkTheme = false,
             onThemeToggle = {},
             onEvent = {},

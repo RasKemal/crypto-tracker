@@ -18,8 +18,8 @@ val MidasLightSurfaceVariant = Color(0xFFE5E5EA)
 val MidasLightDivider = Color(0xFFC6C6C8)
 val MidasLightSecondaryText = Color(0xFF6C6C70)
 
-val MidasGreen = Color(0xFF34C759) // positive change
-val MidasRed = Color(0xFFFF3B30)   // negative change
+val MidasGreen = Color(0xFF34C759)
+val MidasRed = Color(0xFFFF3B30)
 
 val AvatarBlue = Color(0xFF0A84FF)
 val AvatarTeal = Color(0xFF5AC8FA)

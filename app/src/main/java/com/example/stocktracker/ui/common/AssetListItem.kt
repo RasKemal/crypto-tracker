@@ -24,7 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.stocktracker.ui.model.StockUiModel
+import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.model.WatchlistItemUiModel
 import com.example.stocktracker.ui.theme.MidasGreen
 import com.example.stocktracker.ui.theme.MidasRed
@@ -32,8 +32,8 @@ import com.example.stocktracker.ui.theme.MidasSecondaryText
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
-fun StockListItem(
-    stock: StockUiModel,
+fun AssetListItem(
+    asset: AssetUiModel,
     onClick: () -> Unit,
     onWatchlistToggle: () -> Unit,
     modifier: Modifier = Modifier,
@@ -47,26 +47,24 @@ fun StockListItem(
                 .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RankLabel(rank = stock.rank)
+            RankLabel(rank = asset.rank)
             Spacer(Modifier.width(10.dp))
-            StockAvatar(symbol = stock.displaySymbol)
+            AssetAvatar(symbol = asset.symbol)
             Spacer(Modifier.width(12.dp))
-            SymbolDescription(stock.displaySymbol, stock.description, Modifier.weight(1f))
+            SymbolDescription(asset.symbol, asset.name, Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = stock.formattedPrice,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = FontWeight.SemiBold,
+                AnimatedPrice(
+                    formattedPrice = asset.formattedPrice,
+                    priceUsd = asset.livePriceUsd,
                 )
-                ChangeLabel(stock.formattedChange, stock.isPositive)
+                ChangeLabel(asset.formattedChange, asset.isPositive)
             }
             IconButton(onClick = onWatchlistToggle, modifier = Modifier.size(36.dp)) {
                 Icon(
-                    imageVector = if (stock.isInWatchlist) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                    contentDescription = if (stock.isInWatchlist) "Listeden çıkar" else "Listeye ekle",
-                    tint = if (stock.isInWatchlist) MidasGreen else MidasSecondaryText,
+                    imageVector = if (asset.isInWatchlist) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                    contentDescription = if (asset.isInWatchlist) "Listeden çıkar" else "Listeye ekle",
+                    tint = if (asset.isInWatchlist) MidasGreen else MidasSecondaryText,
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -99,16 +97,14 @@ fun WatchlistListItem(
         ) {
             RankLabel(rank = item.rank)
             Spacer(Modifier.width(10.dp))
-            StockAvatar(symbol = item.displaySymbol)
+            AssetAvatar(symbol = item.symbol)
             Spacer(Modifier.width(12.dp))
-            SymbolDescription(item.displaySymbol, item.description, Modifier.weight(1f))
+            SymbolDescription(item.symbol, item.name, Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = item.formattedPrice,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = FontWeight.SemiBold,
+                AnimatedPrice(
+                    formattedPrice = item.formattedPrice,
+                    priceUsd = item.livePriceUsd,
                 )
                 ChangeLabel(item.formattedChange, item.isPositive)
             }
@@ -142,11 +138,15 @@ private fun RankLabel(rank: Int) {
 }
 
 @Composable
-private fun SymbolDescription(displaySymbol: String, description: String, modifier: Modifier = Modifier) {
+private fun SymbolDescription(symbol: String, name: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Text(text = displaySymbol, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onBackground)
         Text(
-            text = description,
+            text = symbol,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            text = name,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -167,15 +167,19 @@ private fun ChangeLabel(formatted: String, isPositive: Boolean) {
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun StockListItemPreview() {
+private fun AssetListItemPreview() {
     StockTrackerTheme(darkTheme = true) {
         Column {
-            StockListItem(
-                stock = StockUiModel("AAPL", "AAPL", "Apple Inc.", 1, "\$189.30", "%18,00", true, false),
+            AssetListItem(
+                asset = AssetUiModel("bitcoin", "BTC", "Bitcoin", 1, 67320.45, "\$67,320.45", "%2,45", true, false),
                 onClick = {}, onWatchlistToggle = {},
             )
-            StockListItem(
-                stock = StockUiModel("RXT", "RXT", "Rackspace Technology", 2, "\$2.14", "-%5,97", false, true),
+            AssetListItem(
+                asset = AssetUiModel("solana", "SOL", "Solana", 2, 147.85, "\$147.85", "%3,78", true, true),
+                onClick = {}, onWatchlistToggle = {},
+            )
+            AssetListItem(
+                asset = AssetUiModel("xrp", "XRP", "XRP", 3, 0.5512, "\$0.5512", "-%1,20", false, false),
                 onClick = {}, onWatchlistToggle = {},
             )
         }

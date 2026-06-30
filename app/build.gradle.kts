@@ -21,9 +21,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "FINNHUB_API_KEY", "\"d903e99r01qk8bfim54gd903e99r01qk8bfim550\"")
-        buildConfigField("String", "FINNHUB_BASE_URL", "\"https://finnhub.io/api/v1/\"")
-        buildConfigField("String", "FINNHUB_WS_URL", "\"wss://ws.finnhub.io\"")
+        buildConfigField("String", "BINANCE_BASE_URL",   "\"https://api.binance.com/api/v3/\"")
+        buildConfigField("String", "BINANCE_STREAM_URL", "\"wss://stream.binance.com:9443/stream\"")
     }
 
     buildTypes {

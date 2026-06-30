@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -39,6 +40,10 @@ fun MainScreen(
     val currentDestination = navBackStackEntry?.destination
 
     val isOnDetailScreen = currentDestination?.route?.startsWith("detail/") == true
+
+    val openDetail: (String, String, String) -> Unit = { id, symbol, name ->
+        navController.navigate(AppDestination.Detail.routeFor(id, symbol, name))
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -66,42 +71,50 @@ fun MainScreen(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = AppDestination.WATCHLIST.route,
+            startDestination = AppDestination.Watchlist.route,
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(
-                route = AppDestination.WATCHLIST.route,
+                route = AppDestination.Watchlist.route,
                 enterTransition = { fadeIn(tween(220)) },
                 exitTransition = { fadeOut(tween(220)) },
             ) {
                 WatchlistScreen(
-                    onStockClick = { navController.navigate(detailRoute(it)) },
+                    onAssetClick = openDetail,
                     isDarkTheme = isDarkTheme,
                     onThemeToggle = onThemeToggle,
                 )
             }
 
             composable(
-                route = AppDestination.SEARCH.route,
+                route = AppDestination.Search.route,
                 enterTransition = { fadeIn(tween(220)) },
                 exitTransition = { fadeOut(tween(220)) },
             ) {
                 SearchScreen(
-                    onStockClick = { navController.navigate(detailRoute(it)) },
+                    onAssetClick = openDetail,
                     isDarkTheme = isDarkTheme,
                     onThemeToggle = onThemeToggle,
                 )
             }
 
             composable(
-                route = DETAIL_ROUTE,
-                arguments = listOf(navArgument("symbol") { type = NavType.StringType }),
+                route = AppDestination.Detail.route,
+                arguments = listOf(
+                    navArgument(AppDestination.Detail.ARG_ID) { type = NavType.StringType },
+                    navArgument(AppDestination.Detail.ARG_SYMBOL) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument(AppDestination.Detail.ARG_NAME) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+                enterTransition = { fadeIn(tween(180)) },
+                exitTransition = { fadeOut(tween(180)) },
             ) {
-                DetailScreen(
-                    onBack = { navController.popBackStack() },
-                    isDarkTheme = isDarkTheme,
-                    onThemeToggle = onThemeToggle,
-                )
+                DetailScreen(onBack = { navController.popBackStack() })
             }
         }
     }
@@ -109,14 +122,14 @@ fun MainScreen(
 
 @Composable
 private fun MidasBottomBar(
-    currentDestination: androidx.navigation.NavDestination?,
-    onNavigate: (AppDestination) -> Unit,
+    currentDestination: NavDestination?,
+    onNavigate: (AppDestination.Tab) -> Unit,
 ) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
     ) {
-        AppDestination.entries.forEach { destination ->
+        AppDestination.tabs.forEach { destination ->
             val isSelected = currentDestination?.hierarchy?.any {
                 it.route == destination.route
             } == true

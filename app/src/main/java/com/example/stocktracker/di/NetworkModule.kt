@@ -1,14 +1,13 @@
 package com.example.stocktracker.di
 
 import com.example.stocktracker.BuildConfig
-import com.example.stocktracker.data.remote.api.FinnhubApi
+import com.example.stocktracker.data.remote.api.BinanceApi
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -23,34 +22,22 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    @Named("finnhub_auth")
-    fun provideFinnhubAuthInterceptor(): Interceptor = Interceptor { chain ->
-        val url = chain.request().url.newBuilder()
-            .addQueryParameter("token", BuildConfig.FINNHUB_API_KEY)
-            .build()
-        chain.proceed(chain.request().newBuilder().url(url).build())
-    }
-
-    @Provides
-    @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
                     else HttpLoggingInterceptor.Level.NONE
         }
 
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        @Named("finnhub_auth") authInterceptor: Interceptor,
         loggingInterceptor: HttpLoggingInterceptor,
     ): OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor(authInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
-        .pingInterval(20, TimeUnit.SECONDS) // keep WebSocket alive during quiet trading periods
+        .pingInterval(30, TimeUnit.SECONDS)
         .build()
 
     @Provides
@@ -61,17 +48,17 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit =
         Retrofit.Builder()
-            .baseUrl(BuildConfig.FINNHUB_BASE_URL)
+            .baseUrl(BuildConfig.BINANCE_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
 
     @Provides
     @Singleton
-    fun provideFinnhubApi(retrofit: Retrofit): FinnhubApi =
-        retrofit.create(FinnhubApi::class.java)
+    fun provideBinanceApi(retrofit: Retrofit): BinanceApi =
+        retrofit.create(BinanceApi::class.java)
 
     @Provides
-    @Named("finnhub_ws_url")
-    fun provideFinnhubWsUrl(): String = BuildConfig.FINNHUB_WS_URL
+    @Named("binance_stream_url")
+    fun provideBinanceStreamUrl(): String = BuildConfig.BINANCE_STREAM_URL
 }

@@ -2,18 +2,18 @@ package com.example.stocktracker.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import com.example.stocktracker.data.local.dao.StockDao
-import com.example.stocktracker.data.local.entity.StockEntity
+import com.example.stocktracker.data.local.dao.CryptoDao
+import com.example.stocktracker.data.local.entity.CryptoEntity
 
 @Database(
-    entities = [StockEntity::class],
+    entities = [CryptoEntity::class],
     version = 1,
     exportSchema = false,
 )
 abstract class MidasDatabase : RoomDatabase() {
-    abstract fun stockDao(): StockDao
+    abstract fun cryptoDao(): CryptoDao
 
     companion object {
-        const val DATABASE_NAME = "midas_database"
+        const val DATABASE_NAME = "midas_binance.db"
     }
 }

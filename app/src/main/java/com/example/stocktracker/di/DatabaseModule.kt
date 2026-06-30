@@ -3,7 +3,7 @@ package com.example.stocktracker.di
 import android.content.Context
 import androidx.room.Room
 import com.example.stocktracker.data.local.MidasDatabase
-import com.example.stocktracker.data.local.dao.StockDao
+import com.example.stocktracker.data.local.dao.CryptoDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,6 +27,6 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideStockDao(database: MidasDatabase): StockDao =
-        database.stockDao()
+    fun provideCryptoDao(database: MidasDatabase): CryptoDao =
+        database.cryptoDao()
 }

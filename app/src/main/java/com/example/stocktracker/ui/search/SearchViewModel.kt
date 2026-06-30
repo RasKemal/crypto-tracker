@@ -4,21 +4,27 @@ import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.stocktracker.domain.model.MarketFilter
-import com.example.stocktracker.domain.model.Stock
-import com.example.stocktracker.domain.model.StockQuote
-import com.example.stocktracker.domain.repository.StockRepository
-import com.example.stocktracker.ui.model.StockUiModel
+import com.example.stocktracker.domain.model.CryptoAsset
+import com.example.stocktracker.domain.model.LivePrice
+import com.example.stocktracker.domain.repository.CryptoRepository
+import com.example.stocktracker.domain.repository.PopularCryptoRepository
+import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.model.toSearchUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -26,67 +32,131 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "SearchVM"
-// Caps /quote calls per search to stay within the Finnhub free-tier rate limit.
-private const val MAX_QUOTES_PER_SEARCH = 15
+private const val SEARCH_DEBOUNCE_MS = 350L
 
 @Immutable
 data class SearchUiState(
     val query: String = "",
-    val selectedFilter: MarketFilter = MarketFilter.ABD,
-    val stocks: List<StockUiModel> = emptyList(),
+    val isShowingPopular: Boolean = true,
+    val assets: List<AssetUiModel> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
 )
 
 sealed interface SearchEvent {
     data class QueryChanged(val query: String) : SearchEvent
-    data class FilterSelected(val filter: MarketFilter) : SearchEvent
-    data class StockClicked(val symbol: String) : SearchEvent
-    data class WatchlistToggled(val stock: StockUiModel) : SearchEvent
+    data class AssetClicked(val asset: AssetUiModel) : SearchEvent
+    data class WatchlistToggled(val asset: AssetUiModel) : SearchEvent
 }
 
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val repository: StockRepository,
+    private val repository: CryptoRepository,
+    private val popularRepository: PopularCryptoRepository,
 ) : ViewModel() {
 
-    private val _rawQuery = MutableStateFlow("")
-    private val _selectedFilter = MutableStateFlow(MarketFilter.ABD)
-    private val _searchResults = MutableStateFlow<List<Stock>>(emptyList())
+    private val _query = MutableStateFlow("")
+    private val _assets = MutableStateFlow<List<CryptoAsset>>(emptyList())
+    private val _isShowingPopular = MutableStateFlow(true)
     private val _isLoading = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
 
-    // Quote map lives in memory only — never written to Room.
-    private val _quotesMap = MutableStateFlow<Map<String, StockQuote>>(emptyMap())
+    private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
 
-    // Filter is applied here; switching tabs never triggers a new network call.
+    private val watchlistIds: StateFlow<Set<String>> = repository.getWatchlist()
+        .map { list -> list.map(CryptoAsset::id).toSet() }
+        .catch { Log.w(TAG, "watchlist flow error", it); emit(emptySet()) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    private data class CoreSnapshot(
+        val query: String,
+        val assets: List<CryptoAsset>,
+        val showingPopular: Boolean,
+        val loading: Boolean,
+        val error: String?,
+    )
+
+    private val core: StateFlow<CoreSnapshot> = combine(
+        _query, _assets, _isShowingPopular, _isLoading, _error,
+    ) { q, a, p, l, e -> CoreSnapshot(q, a, p, l, e) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            CoreSnapshot("", emptyList(), true, true, null),
+        )
+
     val uiState: StateFlow<SearchUiState> = combine(
-        _rawQuery, _selectedFilter, _searchResults, _isLoading, _quotesMap,
-    ) { query, filter, results, loading, quotes ->
-        val filtered = results
-            .filter { filter.matches(it.symbol) }
-            .mapIndexed { index, stock -> stock.toSearchUiModel(index + 1, quotes[stock.symbol]) }
-        SearchUiState(query = query, selectedFilter = filter, stocks = filtered, isLoading = loading, error = _error.value)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState())
+        core, _liveTicks, watchlistIds,
+    ) { snap, ticks, watchlist ->
+        SearchUiState(
+            query = snap.query,
+            isShowingPopular = snap.showingPopular,
+            assets = snap.assets.mapIndexed { index, asset ->
+                asset.toSearchUiModel(
+                    rank = index + 1,
+                    tick = ticks[asset.id],
+                    isInWatchlist = asset.id in watchlist,
+                )
+            },
+            isLoading = snap.loading,
+            error = snap.error,
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        SearchUiState(isLoading = true),
+    )
 
     init {
-        @OptIn(FlowPreview::class)
-        _rawQuery
-            .debounce(350)
+        loadPopular()
+
+        _query
+            .drop(1)
+            .debounce(SEARCH_DEBOUNCE_MS)
             .distinctUntilChanged()
             .onEach { query ->
-                if (query.length >= 2) performSearch(query)
-                else { _searchResults.value = emptyList(); _error.value = null }
+                if (query.isBlank()) loadPopular()
+                else performSearch(query)
             }
+            .launchIn(viewModelScope)
+
+        _assets
+            .map { it.map(CryptoAsset::id) }
+            .distinctUntilChanged()
+            .flatMapLatest { ids ->
+                if (ids.isEmpty()) flowOf<LivePrice>()
+                else repository.observeLivePrices(ids)
+            }
+            .catch { Log.w(TAG, "live prices flow error", it) }
+            .onEach { tick -> _liveTicks.update { it + (tick.id to tick) } }
             .launchIn(viewModelScope)
     }
 
     fun onEvent(event: SearchEvent) {
         when (event) {
-            is SearchEvent.QueryChanged     -> _rawQuery.update { event.query }
-            is SearchEvent.FilterSelected   -> _selectedFilter.update { event.filter }
-            is SearchEvent.WatchlistToggled -> toggleWatchlist(event.stock)
-            is SearchEvent.StockClicked     -> Unit
+            is SearchEvent.QueryChanged     -> _query.update { event.query }
+            is SearchEvent.WatchlistToggled -> toggleWatchlist(event.asset)
+            is SearchEvent.AssetClicked     -> Unit
+        }
+    }
+
+    private fun loadPopular() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            popularRepository.getPopularCryptos()
+                .onSuccess { popular ->
+                    Log.d(TAG, "loadPopular → ${popular.size} assets")
+                    _assets.value = popular
+                    _isShowingPopular.value = true
+                }
+                .onFailure { e ->
+                    Log.e(TAG, "loadPopular failed", e)
+                    _error.value = e.message ?: "Popüler varlıklar yüklenemedi"
+                    _assets.value = emptyList()
+                }
+            _isLoading.value = false
         }
     }
 
@@ -94,42 +164,37 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            repository.searchStocks(query)
-                .onSuccess { stocks ->
-                    Log.d(TAG, "searchStocks(\"$query\") → ${stocks.size} results")
-                    _searchResults.value = stocks
-                    val visible = stocks.take(MAX_QUOTES_PER_SEARCH).map(Stock::symbol).toSet()
-                    _quotesMap.update { current -> current.filterKeys { it in visible } }
-                    fetchQuotesFor(visible)
+            repository.searchAssets(query)
+                .onSuccess { results ->
+                    Log.d(TAG, "searchAssets(\"$query\") → ${results.size} results")
+                    _assets.value = results
+                    _isShowingPopular.value = false
                 }
                 .onFailure { e ->
-                    Log.e(TAG, "searchStocks(\"$query\") failed", e)
-                    _error.value = e.message ?: "Bir hata oluştu"
-                    _searchResults.value = emptyList()
+                    Log.e(TAG, "searchAssets(\"$query\") failed", e)
+                    _error.value = e.message ?: "Arama başarısız"
+                    _assets.value = emptyList()
+                    _isShowingPopular.value = false
                 }
             _isLoading.value = false
         }
     }
 
-    private fun fetchQuotesFor(symbols: Set<String>) {
-        val missing = symbols - _quotesMap.value.keys
-        missing.forEach { symbol ->
-            viewModelScope.launch {
-                repository.getStockQuote(symbol)
-                    .onSuccess { quote -> _quotesMap.update { it + (symbol to quote) } }
-                    .onFailure { Log.w(TAG, "getStockQuote($symbol) failed: ${it.message}") }
-            }
-        }
-    }
-
-    private fun toggleWatchlist(stock: StockUiModel) {
+    private fun toggleWatchlist(asset: AssetUiModel) {
         viewModelScope.launch {
-            if (stock.isInWatchlist) {
-                repository.removeFromWatchlist(stock.symbol)
+            if (asset.id in watchlistIds.value) {
+                repository.removeFromWatchlist(asset.id)
             } else {
-                repository.addToWatchlist(
-                    Stock(stock.symbol, stock.displaySymbol, stock.description, "", "", false)
-                )
+                val cached = _assets.value.firstOrNull { it.id == asset.id }
+                    ?: CryptoAsset(
+                        id = asset.id,
+                        symbol = asset.symbol,
+                        name = asset.name,
+                        quoteAsset = "USDT",
+                        priceUsd = 0.0,
+                        changePercent24Hr = 0.0,
+                    )
+                repository.addToWatchlist(cached)
             }
         }
     }
