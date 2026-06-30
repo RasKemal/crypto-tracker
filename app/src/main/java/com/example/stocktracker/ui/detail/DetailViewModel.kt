@@ -8,6 +8,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
+import com.example.stocktracker.domain.util.userMessage
+import com.example.stocktracker.ui.common.LoadState
+import com.example.stocktracker.ui.model.DetailStableUiModel
+import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.model.mapDetailLivePrice
+import com.example.stocktracker.ui.model.toDetailStableUiModel
 import com.example.stocktracker.ui.navigation.AppDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -20,12 +26,10 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "DetailVM"
-
 private const val SNAPSHOT_REFRESH_INTERVAL_MS = 60_000L
 
 @Immutable
@@ -33,16 +37,14 @@ data class DetailUiState(
     val id: String,
     val symbol: String,
     val name: String,
-    val asset: CryptoAsset? = null,
-    val liveTick: LivePrice? = null,
+    val content: LoadState<DetailStableUiModel>,
     val isInWatchlist: Boolean = false,
-    val isLoading: Boolean = true,
-    val error: String? = null,
 )
 
 sealed interface DetailEvent {
     data object Refresh : DetailEvent
     data object ToggleWatchlist : DetailEvent
+    data object Retry : DetailEvent
 }
 
 @HiltViewModel
@@ -64,8 +66,10 @@ class DetailViewModel @Inject constructor(
 
     private val _asset = MutableStateFlow<CryptoAsset?>(null)
     private val _liveTick = MutableStateFlow<LivePrice?>(null)
-    private val _error = MutableStateFlow<String?>(null)
-    private val _isLoading = MutableStateFlow(true)
+    private val _content = MutableStateFlow<LoadState<CryptoAsset>>(LoadState.Loading)
+    private val _livePrices = MutableStateFlow<Map<String, PriceDisplayUiModel>>(emptyMap())
+
+    val livePrices: StateFlow<Map<String, PriceDisplayUiModel>> = _livePrices
 
     private val watchlistIds: StateFlow<Set<String>> = repository.getWatchlist()
         .map { list -> list.map(CryptoAsset::id).toSet() }
@@ -73,22 +77,32 @@ class DetailViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     val uiState: StateFlow<DetailUiState> = combine(
-        _asset, _liveTick, watchlistIds, _isLoading, _error,
-    ) { asset, tick, watchlist, loading, error ->
+        _asset, _content, watchlistIds,
+    ) { asset, content, watchlist ->
+        val mappedContent = when (content) {
+            LoadState.Loading -> LoadState.Loading
+            is LoadState.Error -> LoadState.Error(content.message)
+            is LoadState.Success -> {
+                val resolved = asset ?: content.data
+                LoadState.Success(resolved.toDetailStableUiModel())
+            }
+        }
         DetailUiState(
             id = assetId,
             symbol = asset?.symbol?.ifBlank { initialSymbol } ?: initialSymbol,
-            name   = asset?.name?.ifBlank   { initialName   } ?: initialName,
-            asset = asset,
-            liveTick = tick,
+            name = asset?.name?.ifBlank { initialName } ?: initialName,
+            content = mappedContent,
             isInWatchlist = assetId in watchlist,
-            isLoading = loading,
-            error = error,
         )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        DetailUiState(id = assetId, symbol = initialSymbol, name = initialName, isLoading = true),
+        DetailUiState(
+            id = assetId,
+            symbol = initialSymbol,
+            name = initialName,
+            content = LoadState.Loading,
+        ),
     )
 
     init {
@@ -96,36 +110,59 @@ class DetailViewModel @Inject constructor(
 
         repository.observeLivePrices(listOf(assetId))
             .catch { Log.w(TAG, "live tick flow error", it) }
-            .onEach { tick -> if (tick.id == assetId) _liveTick.value = tick }
+            .onEach { tick ->
+                if (tick.id == assetId) {
+                    _liveTick.value = tick
+                    syncLivePrice()
+                }
+            }
             .launchIn(viewModelScope)
 
         viewModelScope.launch {
             while (true) {
                 delay(SNAPSHOT_REFRESH_INTERVAL_MS)
-                loadAsset()
+                loadAsset(showLoading = false)
             }
         }
     }
 
     fun onEvent(event: DetailEvent) {
         when (event) {
-            DetailEvent.Refresh         -> loadAsset()
+            DetailEvent.Refresh, DetailEvent.Retry -> loadAsset()
             DetailEvent.ToggleWatchlist -> toggleWatchlist()
         }
     }
 
-    private fun loadAsset() {
+    private fun loadAsset(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _isLoading.update { _asset.value == null }
-            _error.value = null
+            if (showLoading && _asset.value == null) {
+                _content.value = LoadState.Loading
+            }
             repository.getAsset(assetId)
-                .onSuccess { _asset.value = it }
+                .onSuccess { asset ->
+                    _asset.value = asset
+                    _content.value = LoadState.Success(asset)
+                    syncLivePrice()
+                }
                 .onFailure { e ->
                     Log.e(TAG, "getAsset($assetId) failed", e)
-                    if (_asset.value == null) _error.value = e.message ?: "Veri yüklenemedi"
+                    if (_asset.value == null) {
+                        _content.value = LoadState.Error(
+                            e.userMessage("Varlık verisi yüklenemedi"),
+                        )
+                    }
                 }
-            _isLoading.value = false
         }
+    }
+
+    private fun syncLivePrice() {
+        val quote = _asset.value ?: return
+        _livePrices.value = mapOf(
+            assetId to mapDetailLivePrice(
+                tick = _liveTick.value,
+                quote = quote,
+            ),
+        )
     }
 
     private fun toggleWatchlist() {

@@ -7,8 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
-import com.example.stocktracker.ui.model.WatchlistItemUiModel
-import com.example.stocktracker.ui.model.toWatchlistItemUiModel
+import com.example.stocktracker.domain.util.userMessage
+import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.model.WatchlistStableItemUiModel
+import com.example.stocktracker.ui.model.mapWatchlistLivePrice
+import com.example.stocktracker.ui.model.toWatchlistStableItemUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -29,21 +32,26 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "WatchlistVM"
-
 private const val QUOTE_REFRESH_INTERVAL_MS = 60_000L
+
+private data class QuoteFetchState(
+    val quote: CryptoAsset? = null,
+    val isLoading: Boolean = false,
+    val error: String? = null,
+)
 
 @Immutable
 data class WatchlistUiState(
     val localQuery: String = "",
-    val items: List<WatchlistItemUiModel> = emptyList(),
-    val isLoading: Boolean = true,
+    val items: List<WatchlistStableItemUiModel> = emptyList(),
     val isEmpty: Boolean = false,
+    val bannerMessage: String? = null,
 )
 
 sealed interface WatchlistEvent {
     data class LocalQueryChanged(val query: String) : WatchlistEvent
     data class RemoveAsset(val id: String) : WatchlistEvent
-    data class AssetClicked(val item: WatchlistItemUiModel) : WatchlistEvent
+    data class AssetClicked(val item: WatchlistStableItemUiModel) : WatchlistEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,16 +61,19 @@ class WatchlistViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _localQuery = MutableStateFlow("")
+    private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
+    private val _quoteStates = MutableStateFlow<Map<String, QuoteFetchState>>(emptyMap())
+    private val _bannerMessage = MutableStateFlow<String?>(null)
+    private val _livePrices = MutableStateFlow<Map<String, PriceDisplayUiModel>>(emptyMap())
+
+    val livePrices: StateFlow<Map<String, PriceDisplayUiModel>> = _livePrices
 
     private val watchlist: StateFlow<List<CryptoAsset>> = repository.getWatchlist()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
-    private val _quoteCache = MutableStateFlow<Map<String, CryptoAsset>>(emptyMap())
-
     val uiState: StateFlow<WatchlistUiState> = combine(
-        watchlist, _liveTicks, _quoteCache, _localQuery,
-    ) { assets, ticks, quotes, query ->
+        watchlist, _localQuery, _bannerMessage,
+    ) { assets, query, banner ->
         val filtered = if (query.isBlank()) assets
         else assets.filter {
             it.symbol.contains(query, ignoreCase = true) ||
@@ -72,19 +83,15 @@ class WatchlistViewModel @Inject constructor(
         WatchlistUiState(
             localQuery = query,
             items = filtered.mapIndexed { index, asset ->
-                asset.toWatchlistItemUiModel(
-                    rank = index + 1,
-                    tick = ticks[asset.id],
-                    quote = quotes[asset.id],
-                )
+                asset.toWatchlistStableItemUiModel(rank = index + 1)
             },
-            isLoading = false,
             isEmpty = assets.isEmpty(),
+            bannerMessage = banner,
         )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        WatchlistUiState(isLoading = true),
+        WatchlistUiState(),
     )
 
     init {
@@ -95,46 +102,98 @@ class WatchlistViewModel @Inject constructor(
                 if (ids.isEmpty()) flowOf<LivePrice>()
                 else repository.observeLivePrices(ids)
             }
-            .catch { Log.w(TAG, "live prices flow error", it) }
-            .onEach { tick -> _liveTicks.update { it + (tick.id to tick) } }
+            .catch { e ->
+                Log.w(TAG, "live prices flow error", e)
+                _bannerMessage.value = "Canlı fiyat bağlantısı kesildi"
+            }
+            .onEach {
+                _bannerMessage.value = null
+                _liveTicks.update { map -> map + (it.id to it) }
+                syncLivePrice(it.id)
+            }
             .launchIn(viewModelScope)
 
         watchlist
             .onEach { items ->
                 val ids = items.map(CryptoAsset::id).toSet()
-                _quoteCache.update { cache -> cache.filterKeys { it in ids } }
-                items.filter { it.id !in _quoteCache.value }.forEach { fetchQuote(it.id) }
+                _quoteStates.update { states -> states.filterKeys { it in ids } }
+                _livePrices.update { prices -> prices.filterKeys { it in ids } }
+                items.forEach { asset ->
+                    if (asset.id !in _quoteStates.value) fetchQuote(asset.id)
+                    else syncLivePrice(asset.id)
+                }
             }
             .launchIn(viewModelScope)
 
         viewModelScope.launch {
             while (true) {
                 delay(QUOTE_REFRESH_INTERVAL_MS)
-                watchlist.value.forEach { fetchQuote(it.id) }
+                watchlist.value.forEach { fetchQuote(it.id, isRefresh = true) }
             }
-        }
-    }
-
-    private fun fetchQuote(id: String) {
-        viewModelScope.launch {
-            repository.getAsset(id)
-                .onSuccess { asset -> _quoteCache.update { it + (id to asset) } }
-                .onFailure { Log.w(TAG, "getAsset($id) failed: ${it.message}") }
         }
     }
 
     fun onEvent(event: WatchlistEvent) {
         when (event) {
             is WatchlistEvent.LocalQueryChanged -> _localQuery.value = event.query
-            is WatchlistEvent.RemoveAsset       -> removeAsset(event.id)
-            is WatchlistEvent.AssetClicked      -> Unit
+            is WatchlistEvent.RemoveAsset -> removeAsset(event.id)
+            is WatchlistEvent.AssetClicked -> Unit
+        }
+    }
+
+    private fun fetchQuote(id: String, isRefresh: Boolean = false) {
+        viewModelScope.launch {
+            val current = _quoteStates.value[id]
+            if (current?.isLoading == true) return@launch
+            if (!isRefresh && current?.quote != null) return@launch
+
+            _quoteStates.update { it + (id to QuoteFetchState(isLoading = true)) }
+            syncLivePrice(id)
+
+            repository.getAsset(id)
+                .onSuccess { asset ->
+                    _quoteStates.update { it + (id to QuoteFetchState(quote = asset)) }
+                    syncLivePrice(id)
+                }
+                .onFailure { e ->
+                    Log.w(TAG, "getAsset($id) failed: ${e.message}")
+                    val message = e.userMessage("Fiyat yüklenemedi")
+                    _quoteStates.update { states ->
+                        val previous = states[id]
+                        states + (id to QuoteFetchState(
+                            quote = previous?.quote,
+                            error = if (previous?.quote == null) message else null,
+                        ))
+                    }
+                    syncLivePrice(id)
+                    if (isRefresh) {
+                        _bannerMessage.value = "Bazı fiyatlar güncellenemedi"
+                    }
+                }
+        }
+    }
+
+    private fun syncLivePrice(id: String) {
+        val asset = watchlist.value.firstOrNull { it.id == id } ?: return
+        val quoteState = _quoteStates.value[id]
+        val quoteFailed = quoteState?.error != null && quoteState.quote == null
+        val quoteRequested = quoteState != null
+        val quote = quoteState?.quote ?: asset.takeIf { quoteRequested && !quoteFailed }
+        _livePrices.update { prices ->
+            prices + (id to mapWatchlistLivePrice(
+                tick = _liveTicks.value[id],
+                quote = quote,
+                quoteFailed = quoteFailed,
+                quoteRequested = quoteRequested,
+            ))
         }
     }
 
     private fun removeAsset(id: String) {
         viewModelScope.launch {
             repository.removeFromWatchlist(id)
-            _quoteCache.update { it - id }
+            _quoteStates.update { it - id }
+            _livePrices.update { it - id }
         }
     }
 }

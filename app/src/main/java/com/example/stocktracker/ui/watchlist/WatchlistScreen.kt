@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -14,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,7 +23,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -33,7 +36,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stocktracker.ui.common.MidasSearchBar
 import com.example.stocktracker.ui.common.WatchlistListItem
-import com.example.stocktracker.ui.model.WatchlistItemUiModel
+import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.model.WatchlistStableItemUiModel
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
@@ -44,9 +48,11 @@ fun WatchlistScreen(
     viewModel: WatchlistViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val livePrices = viewModel.livePrices.collectAsStateWithLifecycle()
 
     WatchlistContent(
         uiState = uiState,
+        livePrices = livePrices,
         isDarkTheme = isDarkTheme,
         onThemeToggle = onThemeToggle,
         onEvent = { event ->
@@ -61,6 +67,7 @@ fun WatchlistScreen(
 @Composable
 fun WatchlistContent(
     uiState: WatchlistUiState,
+    livePrices: State<Map<String, PriceDisplayUiModel>>,
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
     onEvent: (WatchlistEvent) -> Unit,
@@ -96,13 +103,25 @@ fun WatchlistContent(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
+        uiState.bannerMessage?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                textAlign = TextAlign.Center,
+            )
+        }
+
         Box(modifier = Modifier.fillMaxSize()) {
             when {
-                uiState.isLoading       -> WatchlistLoadingView()
-                uiState.isEmpty         -> WatchlistEmptyView()
+                uiState.isEmpty -> WatchlistEmptyView()
                 uiState.items.isEmpty() -> WatchlistNoResultsView(query = uiState.localQuery)
                 else -> WatchlistItemsList(
                     items = uiState.items,
+                    livePrices = livePrices,
                     onItemClick = { onEvent(WatchlistEvent.AssetClicked(it)) },
                     onRemove = { onEvent(WatchlistEvent.RemoveAsset(it.id)) },
                 )
@@ -113,30 +132,23 @@ fun WatchlistContent(
 
 @Composable
 private fun WatchlistItemsList(
-    items: List<WatchlistItemUiModel>,
-    onItemClick: (WatchlistItemUiModel) -> Unit,
-    onRemove: (WatchlistItemUiModel) -> Unit,
+    items: List<WatchlistStableItemUiModel>,
+    livePrices: State<Map<String, PriceDisplayUiModel>>,
+    onItemClick: (WatchlistStableItemUiModel) -> Unit,
+    onRemove: (WatchlistStableItemUiModel) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+            val onClick = remember(item.id) { { onItemClick(item) } }
+            val onRemoveClick = remember(item.id) { { onRemove(item) } }
             WatchlistListItem(
                 item = item,
-                onClick = { onItemClick(item) },
-                onRemove = { onRemove(item) },
+                livePrices = livePrices,
+                onClick = onClick,
+                onRemove = onRemoveClick,
                 showDivider = index < items.lastIndex,
             )
         }
-    }
-}
-
-@Composable
-private fun WatchlistLoadingView() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(
-            color = MaterialTheme.colorScheme.onBackground,
-            strokeWidth = 2.dp,
-            modifier = Modifier.size(28.dp),
-        )
     }
 }
 
@@ -186,39 +198,25 @@ private fun WatchlistNoResultsView(query: String) {
 }
 
 private val previewWatchlistItems = listOf(
-    WatchlistItemUiModel("bitcoin",  "BTC",  "Bitcoin",  1, 67320.45, "\$67,320.45", "%2,45",  true),
-    WatchlistItemUiModel("ethereum", "ETH",  "Ethereum", 2, 3512.10,  "\$3,512.10",  "%1,10",  true),
-    WatchlistItemUiModel("solana",   "SOL",  "Solana",   3, 147.85,   "\$147.85",    "%3,78",  true),
-    WatchlistItemUiModel("xrp",      "XRP",  "XRP",      4, 0.5512,   "\$0.5512",    "-%1,20", false),
-    WatchlistItemUiModel("dogecoin", "DOGE", "Dogecoin", 5, 0.1623,   "\$0.1623",    "-%2,10", false),
+    WatchlistStableItemUiModel("BTCUSDT", "BTC", "Bitcoin", 1),
+    WatchlistStableItemUiModel("ETHUSDT", "ETH", "Ethereum", 2),
 )
 
 @Preview(name = "Watchlist — Populated (Dark)", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun WatchlistPopulatedDarkPreview() {
-    StockTrackerTheme(darkTheme = true) {
-        WatchlistContent(
-            uiState = WatchlistUiState(isLoading = false, isEmpty = false, items = previewWatchlistItems),
-            isDarkTheme = true,
-            onThemeToggle = {},
-            onEvent = {},
+    val livePrices = remember {
+        mutableStateOf(
+            mapOf(
+                "BTCUSDT" to PriceDisplayUiModel("\$67,320.45", "%2,45", true, 67320.45),
+                "ETHUSDT" to PriceDisplayUiModel.Loading,
+            ),
         )
     }
-}
-
-@Preview(name = "Watchlist — Local Search Active (Dark)", showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-private fun WatchlistLocalSearchDarkPreview() {
     StockTrackerTheme(darkTheme = true) {
         WatchlistContent(
-            uiState = WatchlistUiState(
-                localQuery = "btc",
-                isLoading = false,
-                isEmpty = false,
-                items = previewWatchlistItems.filter {
-                    it.id.contains("bitcoin") || it.symbol.contains("BTC", ignoreCase = true)
-                },
-            ),
+            uiState = WatchlistUiState(isEmpty = false, items = previewWatchlistItems),
+            livePrices = livePrices,
             isDarkTheme = true,
             onThemeToggle = {},
             onEvent = {},
@@ -229,23 +227,12 @@ private fun WatchlistLocalSearchDarkPreview() {
 @Preview(name = "Watchlist — Empty (Dark)", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun WatchlistEmptyDarkPreview() {
+    val livePrices = remember { mutableStateOf(emptyMap<String, PriceDisplayUiModel>()) }
     StockTrackerTheme(darkTheme = true) {
         WatchlistContent(
-            uiState = WatchlistUiState(isLoading = false, isEmpty = true),
+            uiState = WatchlistUiState(isEmpty = true),
+            livePrices = livePrices,
             isDarkTheme = true,
-            onThemeToggle = {},
-            onEvent = {},
-        )
-    }
-}
-
-@Preview(name = "Watchlist — Populated (Light)", showBackground = true, backgroundColor = 0xFFF2F2F7)
-@Composable
-private fun WatchlistPopulatedLightPreview() {
-    StockTrackerTheme(darkTheme = false) {
-        WatchlistContent(
-            uiState = WatchlistUiState(isLoading = false, isEmpty = false, items = previewWatchlistItems),
-            isDarkTheme = false,
             onThemeToggle = {},
             onEvent = {},
         )

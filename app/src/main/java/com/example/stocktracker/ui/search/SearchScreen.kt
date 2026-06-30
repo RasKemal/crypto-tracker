@@ -1,5 +1,6 @@
 package com.example.stocktracker.ui.search
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -23,7 +25,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -33,8 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stocktracker.ui.common.AssetListItem
+import com.example.stocktracker.ui.common.LoadState
 import com.example.stocktracker.ui.common.MidasSearchBar
-import com.example.stocktracker.ui.model.AssetUiModel
+import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.model.StableAssetUiModel
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
@@ -45,9 +52,11 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val livePrices = viewModel.livePrices.collectAsStateWithLifecycle()
 
     SearchContent(
         uiState = uiState,
+        livePrices = livePrices,
         isDarkTheme = isDarkTheme,
         onThemeToggle = onThemeToggle,
         onEvent = { event ->
@@ -62,6 +71,7 @@ fun SearchScreen(
 @Composable
 fun SearchContent(
     uiState: SearchUiState,
+    livePrices: State<Map<String, PriceDisplayUiModel>>,
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
     onEvent: (SearchEvent) -> Unit,
@@ -98,16 +108,23 @@ fun SearchContent(
         )
 
         Box(modifier = Modifier.fillMaxSize()) {
-            when {
-                uiState.isLoading && uiState.assets.isEmpty() -> SearchLoadingView()
-                uiState.assets.isEmpty() && uiState.query.isNotBlank() ->
-                    SearchEmptyView(query = uiState.query)
-                else -> AssetList(
-                    header = if (uiState.isShowingPopular) "Popüler" else null,
-                    assets = uiState.assets,
-                    onAssetClick = { onEvent(SearchEvent.AssetClicked(it)) },
-                    onWatchlistToggle = { onEvent(SearchEvent.WatchlistToggled(it)) },
+            when (val content = uiState.content) {
+                LoadState.Loading -> SearchLoadingView()
+                is LoadState.Error -> SearchErrorView(
+                    message = content.message,
+                    onRetry = { onEvent(SearchEvent.Retry) },
                 )
+                is LoadState.Success -> when {
+                    content.data.isEmpty() && uiState.query.isNotBlank() ->
+                        SearchEmptyView(query = uiState.query)
+                    else -> AssetList(
+                        header = if (uiState.isShowingPopular) "Popüler" else null,
+                        assets = content.data,
+                        livePrices = livePrices,
+                        onAssetClick = { onEvent(SearchEvent.AssetClicked(it)) },
+                        onWatchlistToggle = { onEvent(SearchEvent.WatchlistToggled(it)) },
+                    )
+                }
             }
         }
     }
@@ -116,9 +133,10 @@ fun SearchContent(
 @Composable
 private fun AssetList(
     header: String?,
-    assets: List<AssetUiModel>,
-    onAssetClick: (AssetUiModel) -> Unit,
-    onWatchlistToggle: (AssetUiModel) -> Unit,
+    assets: List<StableAssetUiModel>,
+    livePrices: State<Map<String, PriceDisplayUiModel>>,
+    onAssetClick: (StableAssetUiModel) -> Unit,
+    onWatchlistToggle: (StableAssetUiModel) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         if (header != null) {
@@ -135,10 +153,13 @@ private fun AssetList(
             }
         }
         itemsIndexed(assets, key = { _, asset -> asset.id }) { index, asset ->
+            val onClick = remember(asset.id) { { onAssetClick(asset) } }
+            val onToggle = remember(asset.id) { { onWatchlistToggle(asset) } }
             AssetListItem(
                 asset = asset,
-                onClick = { onAssetClick(asset) },
-                onWatchlistToggle = { onWatchlistToggle(asset) },
+                livePrices = livePrices,
+                onClick = onClick,
+                onWatchlistToggle = onToggle,
                 showDivider = index < assets.lastIndex,
             )
         }
@@ -153,6 +174,26 @@ private fun SearchLoadingView() {
             strokeWidth = 2.dp,
             modifier = Modifier.size(28.dp),
         )
+    }
+}
+
+@Composable
+private fun SearchErrorView(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("Tekrar dene")
+        }
     }
 }
 
@@ -186,25 +227,25 @@ private fun SearchEmptyView(query: String) {
 }
 
 private val previewPopular = listOf(
-    AssetUiModel("bitcoin",  "BTC",  "Bitcoin",  1, 67320.45, "\$67,320.45", "%2,45",  true,  false),
-    AssetUiModel("ethereum", "ETH",  "Ethereum", 2, 3512.10,  "\$3,512.10",  "%1,10",  true,  false),
-    AssetUiModel("solana",   "SOL",  "Solana",   3, 147.85,   "\$147.85",    "%3,78",  true,  true),
-    AssetUiModel("xrp",      "XRP",  "XRP",      4, 0.5512,   "\$0.5512",    "-%1,20", false, false),
-    AssetUiModel("dogecoin", "DOGE", "Dogecoin", 5, 0.1623,   "\$0.1623",    "-%2,10", false, false),
-)
-
-private val previewSearchResults = listOf(
-    AssetUiModel("bitcoin",     "BTC", "Bitcoin",      1, 67320.45, "\$67,320.45", "%2,45",  true,  true),
-    AssetUiModel("bitcoin-cash","BCH", "Bitcoin Cash", 2, 412.30,   "\$412.30",    "%0,85",  true,  false),
-    AssetUiModel("bitcoin-sv",  "BSV", "Bitcoin SV",   3, 58.12,    "\$58.12",     "-%1,30", false, false),
+    StableAssetUiModel("BTCUSDT", "BTC", "Bitcoin", 1, false),
+    StableAssetUiModel("ETHUSDT", "ETH", "Ethereum", 2, false),
 )
 
 @Preview(name = "Search — Popular (Dark)", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun SearchPopularDarkPreview() {
+    val livePrices = remember {
+        mutableStateOf(
+            mapOf(
+                "BTCUSDT" to PriceDisplayUiModel("\$67,320.45", "%2,45", true, 67320.45),
+                "ETHUSDT" to PriceDisplayUiModel("\$3,512.10", "%1,10", true, 3512.10),
+            ),
+        )
+    }
     StockTrackerTheme(darkTheme = true) {
         SearchContent(
-            uiState = SearchUiState(query = "", isShowingPopular = true, assets = previewPopular, isLoading = false),
+            uiState = SearchUiState(content = LoadState.Success(previewPopular)),
+            livePrices = livePrices,
             isDarkTheme = true,
             onThemeToggle = {},
             onEvent = {},
@@ -212,52 +253,15 @@ private fun SearchPopularDarkPreview() {
     }
 }
 
-@Preview(name = "Search — Results (Dark)", showBackground = true, backgroundColor = 0xFF000000)
+@Preview(name = "Search — Error (Dark)", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun SearchResultsDarkPreview() {
+private fun SearchErrorDarkPreview() {
+    val livePrices = remember { mutableStateOf(emptyMap<String, PriceDisplayUiModel>()) }
     StockTrackerTheme(darkTheme = true) {
         SearchContent(
-            uiState = SearchUiState(query = "bitcoin", isShowingPopular = false, assets = previewSearchResults, isLoading = false),
+            uiState = SearchUiState(content = LoadState.Error("Piyasa verisi yüklenemedi")),
+            livePrices = livePrices,
             isDarkTheme = true,
-            onThemeToggle = {},
-            onEvent = {},
-        )
-    }
-}
-
-@Preview(name = "Search — Loading (Dark)", showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-private fun SearchLoadingDarkPreview() {
-    StockTrackerTheme(darkTheme = true) {
-        SearchContent(
-            uiState = SearchUiState(query = "btc", isLoading = true),
-            isDarkTheme = true,
-            onThemeToggle = {},
-            onEvent = {},
-        )
-    }
-}
-
-@Preview(name = "Search — No Results (Dark)", showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-private fun SearchNoResultsDarkPreview() {
-    StockTrackerTheme(darkTheme = true) {
-        SearchContent(
-            uiState = SearchUiState(query = "xyz123", isShowingPopular = false, assets = emptyList(), isLoading = false),
-            isDarkTheme = true,
-            onThemeToggle = {},
-            onEvent = {},
-        )
-    }
-}
-
-@Preview(name = "Search — Popular (Light)", showBackground = true, backgroundColor = 0xFFF2F2F7)
-@Composable
-private fun SearchPopularLightPreview() {
-    StockTrackerTheme(darkTheme = false) {
-        SearchContent(
-            uiState = SearchUiState(query = "", isShowingPopular = true, assets = previewPopular, isLoading = false),
-            isDarkTheme = false,
             onThemeToggle = {},
             onEvent = {},
         )

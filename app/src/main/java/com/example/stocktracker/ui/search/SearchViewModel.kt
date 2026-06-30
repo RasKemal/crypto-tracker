@@ -7,9 +7,14 @@ import androidx.lifecycle.viewModelScope
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
-import com.example.stocktracker.domain.repository.PopularCryptoRepository
-import com.example.stocktracker.ui.model.AssetUiModel
-import com.example.stocktracker.ui.model.toSearchUiModel
+import com.example.stocktracker.domain.usecase.GetPopularCryptosUseCase
+import com.example.stocktracker.domain.usecase.SearchAssetsUseCase
+import com.example.stocktracker.domain.util.userMessage
+import com.example.stocktracker.ui.common.LoadState
+import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.model.StableAssetUiModel
+import com.example.stocktracker.ui.model.mapSearchLivePrice
+import com.example.stocktracker.ui.model.toStableAssetUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -38,74 +43,62 @@ private const val SEARCH_DEBOUNCE_MS = 350L
 data class SearchUiState(
     val query: String = "",
     val isShowingPopular: Boolean = true,
-    val assets: List<AssetUiModel> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null,
+    val content: LoadState<List<StableAssetUiModel>> = LoadState.Loading,
 )
 
 sealed interface SearchEvent {
     data class QueryChanged(val query: String) : SearchEvent
-    data class AssetClicked(val asset: AssetUiModel) : SearchEvent
-    data class WatchlistToggled(val asset: AssetUiModel) : SearchEvent
+    data class AssetClicked(val asset: StableAssetUiModel) : SearchEvent
+    data class WatchlistToggled(val asset: StableAssetUiModel) : SearchEvent
+    data object Retry : SearchEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: CryptoRepository,
-    private val popularRepository: PopularCryptoRepository,
+    private val searchAssets: SearchAssetsUseCase,
+    private val getPopularCryptos: GetPopularCryptosUseCase,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     private val _assets = MutableStateFlow<List<CryptoAsset>>(emptyList())
     private val _isShowingPopular = MutableStateFlow(true)
-    private val _isLoading = MutableStateFlow(false)
-    private val _error = MutableStateFlow<String?>(null)
-
+    private val _content = MutableStateFlow<LoadState<List<CryptoAsset>>>(LoadState.Loading)
     private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
+    private val _livePrices = MutableStateFlow<Map<String, PriceDisplayUiModel>>(emptyMap())
+
+    val livePrices: StateFlow<Map<String, PriceDisplayUiModel>> = _livePrices
 
     private val watchlistIds: StateFlow<Set<String>> = repository.getWatchlist()
         .map { list -> list.map(CryptoAsset::id).toSet() }
         .catch { Log.w(TAG, "watchlist flow error", it); emit(emptySet()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
-    private data class CoreSnapshot(
-        val query: String,
-        val assets: List<CryptoAsset>,
-        val showingPopular: Boolean,
-        val loading: Boolean,
-        val error: String?,
-    )
-
-    private val core: StateFlow<CoreSnapshot> = combine(
-        _query, _assets, _isShowingPopular, _isLoading, _error,
-    ) { q, a, p, l, e -> CoreSnapshot(q, a, p, l, e) }
-        .stateIn(
-            viewModelScope,
-            SharingStarted.Eagerly,
-            CoreSnapshot("", emptyList(), true, true, null),
-        )
-
     val uiState: StateFlow<SearchUiState> = combine(
-        core, _liveTicks, watchlistIds,
-    ) { snap, ticks, watchlist ->
+        _query, _assets, _isShowingPopular, _content, watchlistIds,
+    ) { query, assets, showingPopular, content, watchlist ->
+        val mappedContent = when (content) {
+            LoadState.Loading -> LoadState.Loading
+            is LoadState.Error -> LoadState.Error(content.message)
+            is LoadState.Success -> LoadState.Success(
+                assets.mapIndexed { index, asset ->
+                    asset.toStableAssetUiModel(
+                        rank = index + 1,
+                        isInWatchlist = asset.id in watchlist,
+                    )
+                },
+            )
+        }
         SearchUiState(
-            query = snap.query,
-            isShowingPopular = snap.showingPopular,
-            assets = snap.assets.mapIndexed { index, asset ->
-                asset.toSearchUiModel(
-                    rank = index + 1,
-                    tick = ticks[asset.id],
-                    isInWatchlist = asset.id in watchlist,
-                )
-            },
-            isLoading = snap.loading,
-            error = snap.error,
+            query = query,
+            isShowingPopular = showingPopular,
+            content = mappedContent,
         )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        SearchUiState(isLoading = true),
+        SearchUiState(content = LoadState.Loading),
     )
 
     init {
@@ -129,58 +122,82 @@ class SearchViewModel @Inject constructor(
                 else repository.observeLivePrices(ids)
             }
             .catch { Log.w(TAG, "live prices flow error", it) }
-            .onEach { tick -> _liveTicks.update { it + (tick.id to tick) } }
+            .onEach { tick ->
+                _liveTicks.update { it + (tick.id to tick) }
+                syncLivePrice(tick.id)
+            }
             .launchIn(viewModelScope)
     }
 
     fun onEvent(event: SearchEvent) {
         when (event) {
-            is SearchEvent.QueryChanged     -> _query.update { event.query }
+            is SearchEvent.QueryChanged -> _query.update { event.query }
             is SearchEvent.WatchlistToggled -> toggleWatchlist(event.asset)
-            is SearchEvent.AssetClicked     -> Unit
+            is SearchEvent.AssetClicked -> Unit
+            SearchEvent.Retry -> if (_query.value.isBlank()) loadPopular() else performSearch(_query.value)
         }
     }
 
     private fun loadPopular() {
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            popularRepository.getPopularCryptos()
+            _content.value = LoadState.Loading
+            getPopularCryptos()
                 .onSuccess { popular ->
                     Log.d(TAG, "loadPopular → ${popular.size} assets")
-                    _assets.value = popular
-                    _isShowingPopular.value = true
+                    applySnapshot(popular, showingPopular = true)
                 }
                 .onFailure { e ->
                     Log.e(TAG, "loadPopular failed", e)
-                    _error.value = e.message ?: "Popüler varlıklar yüklenemedi"
                     _assets.value = emptyList()
+                    _livePrices.value = emptyMap()
+                    _content.value = LoadState.Error(
+                        e.userMessage("Popüler varlıklar yüklenemedi"),
+                    )
                 }
-            _isLoading.value = false
         }
     }
 
     private fun performSearch(query: String) {
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            repository.searchAssets(query)
+            _content.value = LoadState.Loading
+            searchAssets(query)
                 .onSuccess { results ->
                     Log.d(TAG, "searchAssets(\"$query\") → ${results.size} results")
-                    _assets.value = results
-                    _isShowingPopular.value = false
+                    applySnapshot(results, showingPopular = false)
                 }
                 .onFailure { e ->
                     Log.e(TAG, "searchAssets(\"$query\") failed", e)
-                    _error.value = e.message ?: "Arama başarısız"
                     _assets.value = emptyList()
+                    _livePrices.value = emptyMap()
                     _isShowingPopular.value = false
+                    _content.value = LoadState.Error(
+                        e.userMessage("Arama başarısız"),
+                    )
                 }
-            _isLoading.value = false
         }
     }
 
-    private fun toggleWatchlist(asset: AssetUiModel) {
+    private fun applySnapshot(assets: List<CryptoAsset>, showingPopular: Boolean) {
+        _assets.value = assets
+        _isShowingPopular.value = showingPopular
+        _content.value = LoadState.Success(assets)
+        _livePrices.value = assets.associate { asset ->
+            asset.id to mapSearchLivePrice(
+                tick = _liveTicks.value[asset.id],
+                quote = asset,
+            )
+        }
+    }
+
+    private fun syncLivePrice(id: String) {
+        val quote = _assets.value.firstOrNull { it.id == id } ?: return
+        val tick = _liveTicks.value[id]
+        _livePrices.update { prices ->
+            prices + (id to mapSearchLivePrice(tick = tick, quote = quote))
+        }
+    }
+
+    private fun toggleWatchlist(asset: StableAssetUiModel) {
         viewModelScope.launch {
             if (asset.id in watchlistIds.value) {
                 repository.removeFromWatchlist(asset.id)

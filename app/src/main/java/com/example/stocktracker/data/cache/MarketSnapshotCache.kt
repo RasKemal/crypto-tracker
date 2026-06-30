@@ -26,36 +26,52 @@ class MarketSnapshotCache @Inject constructor(
     @Volatile private var symbolInfoBySymbol: Map<String, SymbolInfoDto> = emptyMap()
     @Volatile private var symbolInfoByBase: Map<String, List<SymbolInfoDto>> = emptyMap()
     @Volatile private var exchangeFetchedAtMs: Long = 0L
+    @Volatile private var exchangeLastError: Throwable? = null
 
-    suspend fun allTickers(forceRefresh: Boolean = false): List<Ticker24hDto> {
+    suspend fun allTickers(forceRefresh: Boolean = false): Result<List<Ticker24hDto>> {
         if (!forceRefresh && tickerCache.isNotEmpty() &&
             System.currentTimeMillis() - tickerFetchedAtMs < TICKER_TTL_MS
-        ) return tickerCache
+        ) return Result.success(tickerCache)
 
         return tickerMutex.withLock {
             if (!forceRefresh && tickerCache.isNotEmpty() &&
                 System.currentTimeMillis() - tickerFetchedAtMs < TICKER_TTL_MS
-            ) return@withLock tickerCache
+            ) return@withLock Result.success(tickerCache)
 
-            runCatching { api.getAll24hTickers() }
-                .onSuccess { fresh ->
-                    tickerCache = fresh
-                    tickerFetchedAtMs = System.currentTimeMillis()
-                    Log.d(TAG, "tickers refreshed (${fresh.size} symbols)")
-                }
-                .onFailure { Log.w(TAG, "tickers refresh failed: ${it.message}") }
-            tickerCache
+            try {
+                val fresh = api.getAll24hTickers()
+                tickerCache = fresh
+                tickerFetchedAtMs = System.currentTimeMillis()
+                Log.d(TAG, "tickers refreshed (${fresh.size} symbols)")
+                Result.success(fresh)
+            } catch (error: Exception) {
+                Log.w(TAG, "tickers refresh failed: ${error.message}")
+                if (tickerCache.isNotEmpty()) Result.success(tickerCache)
+                else Result.failure(error)
+            }
         }
     }
 
-    suspend fun symbolMetadata(): Map<String, SymbolInfoDto> {
+    suspend fun symbolMetadata(): Result<Map<String, SymbolInfoDto>> {
         ensureExchangeInfo()
-        return symbolInfoBySymbol
+        return if (symbolInfoBySymbol.isNotEmpty()) {
+            Result.success(symbolInfoBySymbol)
+        } else {
+            Result.failure(
+                exchangeLastError ?: IllegalStateException("Sembol kataloğu yüklenemedi"),
+            )
+        }
     }
 
-    suspend fun pairsByBaseAsset(): Map<String, List<SymbolInfoDto>> {
+    suspend fun pairsByBaseAsset(): Result<Map<String, List<SymbolInfoDto>>> {
         ensureExchangeInfo()
-        return symbolInfoByBase
+        return if (symbolInfoByBase.isNotEmpty()) {
+            Result.success(symbolInfoByBase)
+        } else {
+            Result.failure(
+                exchangeLastError ?: IllegalStateException("Sembol kataloğu yüklenemedi"),
+            )
+        }
     }
 
     private suspend fun ensureExchangeInfo() {
@@ -68,15 +84,18 @@ class MarketSnapshotCache @Inject constructor(
                 System.currentTimeMillis() - exchangeFetchedAtMs < EXCHANGE_INFO_TTL_MS
             ) return@withLock
 
-            runCatching { api.getExchangeInfo() }
-                .onSuccess { info ->
-                    val trading = info.symbols.filter { it.status.equals("TRADING", ignoreCase = true) }
-                    symbolInfoBySymbol = trading.associateBy { it.symbol }
-                    symbolInfoByBase = trading.groupBy { it.baseAsset }
-                    exchangeFetchedAtMs = System.currentTimeMillis()
-                    Log.d(TAG, "exchangeInfo refreshed (${trading.size} TRADING symbols)")
-                }
-                .onFailure { Log.w(TAG, "exchangeInfo refresh failed: ${it.message}") }
+            try {
+                val info = api.getExchangeInfo()
+                val trading = info.symbols.filter { it.status.equals("TRADING", ignoreCase = true) }
+                symbolInfoBySymbol = trading.associateBy { it.symbol }
+                symbolInfoByBase = trading.groupBy { it.baseAsset }
+                exchangeFetchedAtMs = System.currentTimeMillis()
+                exchangeLastError = null
+                Log.d(TAG, "exchangeInfo refreshed (${trading.size} TRADING symbols)")
+            } catch (error: Exception) {
+                exchangeLastError = error
+                Log.w(TAG, "exchangeInfo refresh failed: ${error.message}")
+            }
         }
     }
 }

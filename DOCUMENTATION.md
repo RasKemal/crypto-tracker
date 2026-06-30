@@ -22,20 +22,28 @@ DI via Hilt (`@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel`).
 |---|---|
 | `CryptoAsset` | A tradable crypto pair. `id` = full pair (`BTCUSDT`), `symbol` = base ticker (`BTC`), `quoteAsset` = quote (`USDT`). Carries 24h REST stats. |
 | `LivePrice` | Ephemeral WS tick. **Never persisted.** Optional `changePercent24Hr` from `@ticker` stream. |
+| `MarketSnapshot` | Cached tickers + pair catalog for search/popular use cases. |
+| `CryptoPair` | Trading pair metadata (`symbol`, `baseAsset`, `quoteAsset`). |
 
 Watchlist membership is **not** on `CryptoAsset`. ViewModels derive it from Room.
 
-### Repository interfaces
+### Use cases (`domain/usecase/`)
 
-**`CryptoRepository`**
-- `searchAssets(query)` — client-side search over cached Binance data
-- `getAsset(id)` — single-symbol REST snapshot (weight 2)
-- `getWatchlist()` — `Flow` from Room; identity only, no prices
-- `observeLivePrices(ids)` — cold `Flow`; opens WS when collected, closes on cancel. Restart via `flatMapLatest` when id set changes
-- `addToWatchlist` / `removeFromWatchlist` — Room writes
+Only where there is real application logic — not thin repository wrappers:
 
-**`PopularCryptoRepository`**
-- `getPopularCryptos()` — top 10 by 24h quote volume on USD-stable pairs, deduplicated by base asset
+| Use case | Responsibility |
+|---|---|
+| `SearchAssetsUseCase` | Client-side search scoring + stable-pair resolution |
+| `GetPopularCryptosUseCase` | Top-10 by 24h quote volume, deduplicated by base |
+
+ViewModels call `CryptoRepository` directly for watchlist, live prices, and single-asset fetch.
+
+### Repository interface
+
+**`CryptoRepository`** (data access only)
+- `getMarketSnapshot()` — cached tickers + pair catalog
+- `getAsset(id)` — single-symbol REST
+- `getWatchlist()` / `observeLivePrices()` / add / remove
 
 ---
 
@@ -82,12 +90,17 @@ OkHttp replies to Binance server PINGs automatically. Client `pingInterval(30s)`
 ### Repositories
 
 **`BinanceCryptoRepositoryImpl`**
-- Search: scores base assets (prefix > name > substring), resolves best stable pair per base (USDT → USDC → FDUSD), max 30 results
+- `getMarketSnapshot()` — maps in-memory cache data to `MarketSnapshot`
 - `getAsset`: direct REST + cached metadata
-- `observeLivePrices`: delegates to `BinanceStreamClient`
+- Watchlist + live prices unchanged
 
-**`BinancePopularCryptoRepositoryImpl`**
-- Ranks all USD-stable pairs by `quoteVolume`, picks first occurrence per base asset, limit 10
+Search and popular ranking live in use cases, not the repository.
+
+### UI state
+
+- `LoadState<T>` — `Loading` / `Success<T>` / `Error` for Search and Detail screens
+- `PriceDisplayUiModel` — pre-formatted price, 24h change, and trend direction; mapped once via `UiMappers`
+- `StableAssetUiModel` / `WatchlistStableItemUiModel` / `DetailStableUiModel` — identity and snapshot stats only; no embedded price
 
 ### Quote priority (`QuotePriority.kt`)
 
@@ -105,7 +118,7 @@ When BTC trades as BTCUSDT, BTCUSDC, and BTCFDUSD, USDT wins. Prevents duplicate
 
 - **`CryptoEntity`** — watchlist table. Stores id, symbol, name, addedAt. **No prices.**
 - **`CryptoDao`** — `observeWatchlist()` Flow, insert (REPLACE on conflict), delete
-- **`MidasDatabase`** — `midas_binance.db` (bumped from CoinCap-era db name)
+- **`MidasDatabase`** — `midas_binance.db`
 
 ### `AssetNames.kt`
 
@@ -125,33 +138,37 @@ Screens split into stateful entry (hiltViewModel + collectAsStateWithLifecycle) 
 
 ### Search (`SearchViewModel`)
 
-Sources merged via `combine`:
-- `_assets` — REST snapshot (popular or search results)
-- `_liveTicks` — accumulating WS tick map (survives tab switches)
-- `watchlistIds` — Room-derived set for bookmark state
+Two separate exposed flows — stable list and volatile prices are never merged in the VM:
 
-- Empty query → `PopularCryptoRepository`
-- Non-empty → debounced 350ms → `searchAssets`
-- WS: `flatMapLatest` on visible id set; ticks accumulated in `_liveTicks`
+- `uiState` — query, popular/search flag, `LoadState<List<StableAssetUiModel>>` (updates on snapshot + watchlist changes only)
+- `livePrices` — `Map<String, PriceDisplayUiModel>` (updates on WS ticks; re-seeded from REST on snapshot change)
+
+- Empty query → `GetPopularCryptosUseCase`
+- Non-empty → debounced 350ms → `SearchAssetsUseCase`
+- WS: `flatMapLatest` on visible id set; ticks update `livePrices` entry-by-entry
 
 ### Watchlist (`WatchlistViewModel`)
 
-Merges: Room watchlist + `_liveTicks` + `_quoteCache` (REST) + local filter query.
+- `uiState` — filtered `List<WatchlistStableItemUiModel>`, empty/banner flags (updates on Room watchlist + local query)
+- `livePrices` — `Map<String, PriceDisplayUiModel>` (updates on WS ticks and per-row REST quote fetch)
 
 - WS restarts when watchlist ids change (`flatMapLatest`)
-- New ids trigger one-shot `getAsset`; removed ids evicted from cache
+- New ids trigger one-shot `getAsset`; removed ids evicted from quote cache and price map
 - Periodic REST refresh every 60s (high/low/volume/VWAP safety net)
 
 ### Detail (`DetailViewModel`)
 
+- `uiState` — nav identity, `LoadState<DetailStableUiModel>`, watchlist flag (updates on REST snapshot)
+- `livePrices` — single-entry map keyed by asset id (updates on WS ticks)
+
 - Nav args pass `id`, `symbol`, `name` for instant top bar (no flicker)
 - Single WS subscription for the asset id
 - REST snapshot on load + every 60s
-- Live tick overrides price/change in UI
+- Composables join stable content with `livePrices[id]` for the price block
 
 ### UI models (`AssetUiModel.kt`)
 
-Formatting lives in mappers, not Composables:
+Stable and volatile models are composed at the screen layer, not in ViewModels:
 - `formatUsd()` — scale-aware ($67,401.23 vs $0.1642)
 - `formatChangePercent()` — Turkish locale (`%2,45`, `-%1,20`)
 - `formatLargeUsd()` — K/M/B/T suffixes
@@ -203,7 +220,7 @@ Filter: `tag:BinanceWS | tag:MarketCache | tag:SearchVM | tag:WatchlistVM`
 
 ## Design Rules
 
-1. **Live prices never go to Room** — WS ticks merged in ViewModels via `combine`.
+1. **Live prices never go to Room** — WS ticks merged in ViewModels via separate `livePrices` flows.
 2. **Watchlist SSOT** — Room flow drives bookmark icon; not stored on domain model.
 3. **`id` = trading pair** — same identifier for REST, WS, Room, and navigation.
 4. **Cache before search** — one bulk ticker fetch powers search + popular; avoids rate limits.

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -41,12 +42,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.ui.common.AnimatedPrice
 import com.example.stocktracker.ui.common.AssetAvatar
-import com.example.stocktracker.ui.model.formatChangePercent
-import com.example.stocktracker.ui.model.formatLargeUsd
-import com.example.stocktracker.ui.model.formatUsd
+import com.example.stocktracker.ui.common.LoadState
+import com.example.stocktracker.ui.model.DetailStableUiModel
+import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.model.StatRowUiModel
 import com.example.stocktracker.ui.theme.MidasGreen
 import com.example.stocktracker.ui.theme.MidasRed
 import com.example.stocktracker.ui.theme.StockTrackerTheme
@@ -57,13 +58,20 @@ fun DetailScreen(
     viewModel: DetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    DetailContent(uiState = uiState, onBack = onBack, onEvent = viewModel::onEvent)
+    val livePrices by viewModel.livePrices.collectAsStateWithLifecycle()
+    DetailContent(
+        uiState = uiState,
+        livePrices = livePrices,
+        onBack = onBack,
+        onEvent = viewModel::onEvent,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailContent(
     uiState: DetailUiState,
+    livePrices: Map<String, PriceDisplayUiModel>,
     onBack: () -> Unit,
     onEvent: (DetailEvent) -> Unit,
     modifier: Modifier = Modifier,
@@ -108,31 +116,32 @@ fun DetailContent(
         )
 
         Crossfade(
-            targetState = when {
-                uiState.asset != null -> DetailRenderState.Loaded(uiState.asset)
-                uiState.error != null -> DetailRenderState.Error(uiState.error)
-                else                  -> DetailRenderState.Loading
-            },
+            targetState = uiState.content,
             animationSpec = tween(180),
             label = "DetailCrossfade",
-        ) { state ->
-            when (state) {
-                is DetailRenderState.Loaded -> DetailBody(uiState = uiState, asset = state.asset)
-                is DetailRenderState.Error  -> DetailError(state.message)
-                DetailRenderState.Loading   -> DetailLoading()
+        ) { content ->
+            when (content) {
+                LoadState.Loading -> DetailLoading()
+                is LoadState.Error -> DetailError(
+                    message = content.message,
+                    onRetry = { onEvent(DetailEvent.Retry) },
+                )
+                is LoadState.Success -> DetailBody(
+                    symbol = uiState.symbol,
+                    content = content.data,
+                    price = livePrices[uiState.id] ?: PriceDisplayUiModel.Loading,
+                )
             }
         }
     }
 }
 
-private sealed interface DetailRenderState {
-    data object Loading : DetailRenderState
-    data class Error(val message: String) : DetailRenderState
-    data class Loaded(val asset: CryptoAsset) : DetailRenderState
-}
-
 @Composable
-private fun DetailBody(uiState: DetailUiState, asset: CryptoAsset) {
+private fun DetailBody(
+    symbol: String,
+    content: DetailStableUiModel,
+    price: PriceDisplayUiModel,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -143,64 +152,43 @@ private fun DetailBody(uiState: DetailUiState, asset: CryptoAsset) {
         Spacer(Modifier.height(8.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AssetAvatar(symbol = asset.symbol, modifier = Modifier.size(56.dp))
+            AssetAvatar(symbol = symbol, modifier = Modifier.size(56.dp))
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${asset.symbol}/${asset.quoteAsset}",
+                    text = content.pairLabel,
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = asset.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        val price = uiState.liveTick?.price ?: asset.priceUsd
-        val changePct = uiState.liveTick?.changePercent24Hr ?: asset.changePercent24Hr
         Column {
             Text("Fiyat", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             AnimatedPrice(
-                formattedPrice = price.formatUsd(),
-                priceUsd = price,
+                formattedPrice = price.formattedPrice,
+                priceUsd = price.priceUsd ?: 0.0,
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "${changePct.formatChangePercent()}  •  24s",
+                text = "${price.formattedChange}  •  24s",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (changePct >= 0) MidasGreen else MidasRed,
+                color = if (price.isPositive) MidasGreen else MidasRed,
                 fontWeight = FontWeight.SemiBold,
             )
         }
 
-        StatGroup(
-            title = "24 Saatlik Aralık",
-            rows = listOf(
-                "En Yüksek" to (asset.high24Hr?.formatUsd() ?: "--"),
-                "En Düşük"  to (asset.low24Hr?.formatUsd() ?: "--"),
-                "Ortalama (VWAP)" to (asset.vwap24Hr?.formatUsd() ?: "--"),
-            ),
-        )
-
-        StatGroup(
-            title = "Piyasa Aktivitesi",
-            rows = listOf(
-                "24s Hacim" to (asset.volumeUsd24Hr?.formatLargeUsd() ?: "--"),
-                "Çift"      to "${asset.symbol}/${asset.quoteAsset}",
-            ),
-        )
+        StatGroup(title = "24 Saatlik Aralık", rows = content.rangeStats)
+        StatGroup(title = "Piyasa Aktivitesi", rows = content.activityStats)
 
         Spacer(Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun StatGroup(title: String, rows: List<Pair<String, String>>) {
+private fun StatGroup(title: String, rows: List<StatRowUiModel>) {
     Column {
         Text(
             text = title,
@@ -214,8 +202,8 @@ private fun StatGroup(title: String, rows: List<Pair<String, String>>) {
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surface),
         ) {
-            rows.forEachIndexed { index, (label, value) ->
-                StatRow(label, value)
+            rows.forEachIndexed { index, row ->
+                StatRow(row.label, row.value)
                 if (index < rows.lastIndex) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outline,
@@ -252,10 +240,11 @@ private fun DetailLoading() {
 }
 
 @Composable
-private fun DetailError(message: String) {
-    Box(
+private fun DetailError(message: String, onRetry: () -> Unit) {
+    Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
-        contentAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = message,
@@ -263,6 +252,10 @@ private fun DetailError(message: String) {
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
         )
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("Tekrar dene")
+        }
     }
 }
 
@@ -272,20 +265,32 @@ private fun DetailPreview() {
     StockTrackerTheme(darkTheme = true) {
         DetailContent(
             uiState = DetailUiState(
-                id = "BTCUSDT", symbol = "BTC", name = "Bitcoin",
-                asset = CryptoAsset(
-                    id = "BTCUSDT", symbol = "BTC", name = "Bitcoin",
-                    quoteAsset = "USDT",
-                    priceUsd = 67_320.45, changePercent24Hr = 2.45,
-                    high24Hr = 68_120.0, low24Hr = 65_870.0,
-                    volumeUsd24Hr = 42_000_000_000.0,
-                    vwap24Hr = 67_180.0,
-                ),
-                liveTick = com.example.stocktracker.domain.model.LivePrice(
-                    id = "BTCUSDT", price = 67_400.10, changePercent24Hr = 2.62,
+                id = "BTCUSDT",
+                symbol = "BTC",
+                name = "Bitcoin",
+                content = LoadState.Success(
+                    DetailStableUiModel(
+                        pairLabel = "BTC/USDT",
+                        rangeStats = listOf(
+                            StatRowUiModel("En Yüksek", "\$68,120.00"),
+                            StatRowUiModel("En Düşük", "\$65,870.00"),
+                            StatRowUiModel("Ortalama (VWAP)", "\$67,180.00"),
+                        ),
+                        activityStats = listOf(
+                            StatRowUiModel("24s Hacim", "\$42.00B"),
+                            StatRowUiModel("Çift", "BTC/USDT"),
+                        ),
+                    ),
                 ),
                 isInWatchlist = true,
-                isLoading = false,
+            ),
+            livePrices = mapOf(
+                "BTCUSDT" to PriceDisplayUiModel(
+                    formattedPrice = "\$67,400.10",
+                    formattedChange = "%2,62",
+                    isPositive = true,
+                    priceUsd = 67_400.10,
+                ),
             ),
             onBack = {},
             onEvent = {},
