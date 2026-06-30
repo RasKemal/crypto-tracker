@@ -1,15 +1,13 @@
 package com.example.stocktracker.data.mapper
 
 import com.example.stocktracker.data.local.entity.CryptoEntity
-import com.example.stocktracker.data.remote.dto.SymbolInfoDto
 import com.example.stocktracker.data.remote.dto.Ticker24hDto
 import com.example.stocktracker.domain.model.CryptoAsset
-import com.example.stocktracker.domain.model.CryptoPair
 import com.example.stocktracker.domain.util.stripUsdStableQuote
 
-internal fun Ticker24hDto.toDomain(info: SymbolInfoDto? = null): CryptoAsset {
-    val base = info?.baseAsset ?: stripUsdStableQuote(symbol)
-    val quote = info?.quoteAsset ?: symbol.removePrefix(base)
+internal fun Ticker24hDto.toDomain(): CryptoAsset {
+    val base = stripUsdStableQuote(symbol)
+    val quote = symbol.removePrefix(base)
     return CryptoAsset(
         id = symbol,
         symbol = base,
@@ -23,12 +21,6 @@ internal fun Ticker24hDto.toDomain(info: SymbolInfoDto? = null): CryptoAsset {
         vwap24Hr = weightedAvgPrice?.toDoubleOrNull(),
     )
 }
-
-internal fun SymbolInfoDto.toCryptoPair(): CryptoPair = CryptoPair(
-    symbol = symbol,
-    baseAsset = baseAsset,
-    quoteAsset = quoteAsset,
-)
 
 fun CryptoEntity.toDomain(): CryptoAsset = CryptoAsset(
     id = id,

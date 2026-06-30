@@ -17,17 +17,6 @@ data class Ticker24hDto(
     @SerializedName("askPrice") val askPrice: String? = null,
 )
 
-data class ExchangeInfoDto(
-    @SerializedName("symbols") val symbols: List<SymbolInfoDto>,
-)
-
-data class SymbolInfoDto(
-    @SerializedName("symbol") val symbol: String,
-    @SerializedName("status") val status: String,
-    @SerializedName("baseAsset") val baseAsset: String,
-    @SerializedName("quoteAsset") val quoteAsset: String,
-)
-
 data class CombinedStreamEnvelopeDto(
     @SerializedName("stream") val stream: String?,
     @SerializedName("data") val data: TickerStreamPayloadDto?,

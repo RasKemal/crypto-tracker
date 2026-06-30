@@ -3,7 +3,6 @@ package com.example.stocktracker.data.repository
 import android.util.Log
 import com.example.stocktracker.data.cache.MarketSnapshotCache
 import com.example.stocktracker.data.local.dao.CryptoDao
-import com.example.stocktracker.data.mapper.toCryptoPair
 import com.example.stocktracker.data.mapper.toDomain
 import com.example.stocktracker.data.mapper.toEntity
 import com.example.stocktracker.data.remote.api.BinanceApi
@@ -12,6 +11,7 @@ import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.model.MarketSnapshot
 import com.example.stocktracker.domain.repository.CryptoRepository
+import com.example.stocktracker.domain.util.isUsdStableQuote
 import com.example.stocktracker.domain.util.userMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -30,29 +30,20 @@ class BinanceCryptoRepositoryImpl @Inject constructor(
 
     override suspend fun getMarketSnapshot(): Result<MarketSnapshot> = runCatching {
         val tickers = cache.allTickers().getOrThrow()
-        val metadata = cache.symbolMetadata().getOrThrow()
-        val pairsByBase = cache.pairsByBaseAsset().getOrThrow()
-
-        val assetsBySymbol = tickers.associate { ticker ->
-            val info = metadata[ticker.symbol]
-            ticker.symbol to ticker.toDomain(info)
-        }
-
-        MarketSnapshot(
-            assetsBySymbol = assetsBySymbol,
-            pairsByBaseAsset = pairsByBase.mapValues { (_, pairs) ->
-                pairs.map { it.toCryptoPair() }
-            },
-        )
+        val assets = tickers
+            .filter { it.symbol.length > 3 }
+            .map { it.toDomain() }
+            .filter { it.quoteAsset.isUsdStableQuote() }
+            .sortedByDescending { it.volumeUsd24Hr ?: 0.0 }
+            .distinctBy { it.symbol }
+        MarketSnapshot(assets = assets)
     }.recoverCatching { e ->
         Log.e(TAG, "getMarketSnapshot failed", e)
         error(e.userMessage("Piyasa verisi yüklenemedi"))
     }
 
     override suspend fun getAsset(id: String): Result<CryptoAsset> = runCatching {
-        val ticker = api.getTicker24h(id)
-        val info = cache.symbolMetadata().getOrNull()?.get(id)
-        ticker.toDomain(info)
+        api.getTicker24h(id).toDomain()
     }.recoverCatching { e ->
         Log.w(TAG, "getAsset($id) failed: ${e.message}")
         error(e.userMessage("Varlık verisi yüklenemedi"))

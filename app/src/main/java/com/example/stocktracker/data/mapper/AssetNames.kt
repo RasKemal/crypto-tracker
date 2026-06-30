@@ -92,7 +92,12 @@ internal object AssetNames {
         "FDUSD" to "First Digital USD",
         "TUSD"  to "TrueUSD",
         "DAI"   to "Dai",
-    )
+        "XRP"   to "Ripple",
+        "USD1"  to "World Liberty Financial USD",
+        "SPCXB" to "SpaceX Tokenized bStocks",
+        "HYPER" to "Hyperlane",
+        "RLUSD" to "Ripple USD",
+        )
 
     fun friendly(baseAsset: String): String = map[baseAsset.uppercase()] ?: baseAsset
 }
