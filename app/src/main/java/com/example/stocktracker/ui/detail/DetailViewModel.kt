@@ -1,7 +1,6 @@
 package com.example.stocktracker.ui.detail
 
 import android.util.Log
-import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,9 +9,8 @@ import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
 import com.example.stocktracker.domain.util.userMessage
 import com.example.stocktracker.ui.common.LoadState
-import com.example.stocktracker.ui.model.DetailStableUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.model.mapDetailLivePrice
+import com.example.stocktracker.ui.model.mapLivePrice
 import com.example.stocktracker.ui.model.toDetailStableUiModel
 import com.example.stocktracker.ui.navigation.AppDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -31,21 +30,6 @@ import javax.inject.Inject
 
 private const val TAG = "DetailVM"
 private const val SNAPSHOT_REFRESH_INTERVAL_MS = 60_000L
-
-@Immutable
-data class DetailUiState(
-    val id: String,
-    val symbol: String,
-    val name: String,
-    val content: LoadState<DetailStableUiModel>,
-    val isInWatchlist: Boolean = false,
-)
-
-sealed interface DetailEvent {
-    data object Refresh : DetailEvent
-    data object ToggleWatchlist : DetailEvent
-    data object Retry : DetailEvent
-}
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
@@ -118,18 +102,22 @@ class DetailViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        viewModelScope.launch {
-            while (true) {
-                delay(SNAPSHOT_REFRESH_INTERVAL_MS)
-                loadAsset(showLoading = false)
-            }
-        }
+        snapshotRefreshFlow()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Unit)
     }
 
     fun onEvent(event: DetailEvent) {
         when (event) {
             DetailEvent.Refresh, DetailEvent.Retry -> loadAsset()
             DetailEvent.ToggleWatchlist -> toggleWatchlist()
+        }
+    }
+
+    private fun snapshotRefreshFlow() = flow {
+        while (true) {
+            delay(SNAPSHOT_REFRESH_INTERVAL_MS)
+            loadAsset(showLoading = false)
+            emit(Unit)
         }
     }
 
@@ -158,7 +146,7 @@ class DetailViewModel @Inject constructor(
     private fun syncLivePrice() {
         val quote = _asset.value ?: return
         _livePrices.value = mapOf(
-            assetId to mapDetailLivePrice(
+            assetId to mapLivePrice(
                 tick = _liveTick.value,
                 quote = quote,
             ),

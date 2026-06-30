@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,10 +36,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.stocktracker.ui.common.AssetListItem
 import com.example.stocktracker.ui.common.MidasSearchBar
-import com.example.stocktracker.ui.common.WatchlistListItem
+import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.model.WatchlistStableItemUiModel
+import com.example.stocktracker.ui.theme.MidasSecondaryText
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
@@ -55,11 +58,8 @@ fun WatchlistScreen(
         livePrices = livePrices,
         isDarkTheme = isDarkTheme,
         onThemeToggle = onThemeToggle,
-        onEvent = { event ->
-            if (event is WatchlistEvent.AssetClicked) {
-                onAssetClick(event.item.id, event.item.symbol, event.item.name)
-            } else viewModel.onEvent(event)
-        },
+        onAssetClick = { asset -> onAssetClick(asset.id, asset.symbol, asset.name) },
+        onEvent = viewModel::onEvent,
     )
 }
 
@@ -70,6 +70,7 @@ fun WatchlistContent(
     livePrices: State<Map<String, PriceDisplayUiModel>>,
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
+    onAssetClick: (AssetUiModel) -> Unit,
     onEvent: (WatchlistEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -117,12 +118,13 @@ fun WatchlistContent(
 
         Box(modifier = Modifier.fillMaxSize()) {
             when {
+                uiState.isLoading -> WatchlistLoadingView()
                 uiState.isEmpty -> WatchlistEmptyView()
                 uiState.items.isEmpty() -> WatchlistNoResultsView(query = uiState.localQuery)
                 else -> WatchlistItemsList(
                     items = uiState.items,
                     livePrices = livePrices,
-                    onItemClick = { onEvent(WatchlistEvent.AssetClicked(it)) },
+                    onItemClick = onAssetClick,
                     onRemove = { onEvent(WatchlistEvent.RemoveAsset(it.id)) },
                 )
             }
@@ -132,23 +134,43 @@ fun WatchlistContent(
 
 @Composable
 private fun WatchlistItemsList(
-    items: List<WatchlistStableItemUiModel>,
+    items: List<AssetUiModel>,
     livePrices: State<Map<String, PriceDisplayUiModel>>,
-    onItemClick: (WatchlistStableItemUiModel) -> Unit,
-    onRemove: (WatchlistStableItemUiModel) -> Unit,
+    onItemClick: (AssetUiModel) -> Unit,
+    onRemove: (AssetUiModel) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
             val onClick = remember(item.id) { { onItemClick(item) } }
             val onRemoveClick = remember(item.id) { { onRemove(item) } }
-            WatchlistListItem(
-                item = item,
+            AssetListItem(
+                asset = item,
                 livePrices = livePrices,
                 onClick = onClick,
-                onRemove = onRemoveClick,
+                trailingIcon = {
+                    IconButton(onClick = onRemoveClick, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = Icons.Rounded.RemoveCircleOutline,
+                            contentDescription = "İzleme listesinden çıkar",
+                            tint = MidasSecondaryText,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                },
                 showDivider = index < items.lastIndex,
             )
         }
+    }
+}
+
+@Composable
+private fun WatchlistLoadingView() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.onBackground,
+            strokeWidth = 2.dp,
+            modifier = Modifier.size(28.dp),
+        )
     }
 }
 
@@ -198,8 +220,8 @@ private fun WatchlistNoResultsView(query: String) {
 }
 
 private val previewWatchlistItems = listOf(
-    WatchlistStableItemUiModel("BTCUSDT", "BTC", "Bitcoin", 1),
-    WatchlistStableItemUiModel("ETHUSDT", "ETH", "Ethereum", 2),
+    AssetUiModel("BTCUSDT", "BTC", "Bitcoin", 1),
+    AssetUiModel("ETHUSDT", "ETH", "Ethereum", 2),
 )
 
 @Preview(name = "Watchlist — Populated (Dark)", showBackground = true, backgroundColor = 0xFF000000)
@@ -219,6 +241,7 @@ private fun WatchlistPopulatedDarkPreview() {
             livePrices = livePrices,
             isDarkTheme = true,
             onThemeToggle = {},
+            onAssetClick = {},
             onEvent = {},
         )
     }
@@ -234,6 +257,7 @@ private fun WatchlistEmptyDarkPreview() {
             livePrices = livePrices,
             isDarkTheme = true,
             onThemeToggle = {},
+            onAssetClick = {},
             onEvent = {},
         )
     }

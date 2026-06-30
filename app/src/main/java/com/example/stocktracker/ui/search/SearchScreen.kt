@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.SearchOff
@@ -40,8 +42,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stocktracker.ui.common.AssetListItem
 import com.example.stocktracker.ui.common.LoadState
 import com.example.stocktracker.ui.common.MidasSearchBar
+import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.model.StableAssetUiModel
+import com.example.stocktracker.ui.theme.MidasGreen
+import com.example.stocktracker.ui.theme.MidasSecondaryText
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
@@ -59,11 +63,8 @@ fun SearchScreen(
         livePrices = livePrices,
         isDarkTheme = isDarkTheme,
         onThemeToggle = onThemeToggle,
-        onEvent = { event ->
-            if (event is SearchEvent.AssetClicked) {
-                onAssetClick(event.asset.id, event.asset.symbol, event.asset.name)
-            } else viewModel.onEvent(event)
-        },
+        onAssetClick = { asset -> onAssetClick(asset.id, asset.symbol, asset.name) },
+        onEvent = viewModel::onEvent,
     )
 }
 
@@ -74,6 +75,7 @@ fun SearchContent(
     livePrices: State<Map<String, PriceDisplayUiModel>>,
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
+    onAssetClick: (AssetUiModel) -> Unit,
     onEvent: (SearchEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -121,7 +123,7 @@ fun SearchContent(
                         header = if (uiState.isShowingPopular) "Popüler" else null,
                         assets = content.data,
                         livePrices = livePrices,
-                        onAssetClick = { onEvent(SearchEvent.AssetClicked(it)) },
+                        onAssetClick = onAssetClick,
                         onWatchlistToggle = { onEvent(SearchEvent.WatchlistToggled(it)) },
                     )
                 }
@@ -133,10 +135,10 @@ fun SearchContent(
 @Composable
 private fun AssetList(
     header: String?,
-    assets: List<StableAssetUiModel>,
+    assets: List<AssetUiModel>,
     livePrices: State<Map<String, PriceDisplayUiModel>>,
-    onAssetClick: (StableAssetUiModel) -> Unit,
-    onWatchlistToggle: (StableAssetUiModel) -> Unit,
+    onAssetClick: (AssetUiModel) -> Unit,
+    onWatchlistToggle: (AssetUiModel) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         if (header != null) {
@@ -159,7 +161,16 @@ private fun AssetList(
                 asset = asset,
                 livePrices = livePrices,
                 onClick = onClick,
-                onWatchlistToggle = onToggle,
+                trailingIcon = {
+                    IconButton(onClick = onToggle, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = if (asset.isInWatchlist) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                            contentDescription = if (asset.isInWatchlist) "Listeden çıkar" else "Listeye ekle",
+                            tint = if (asset.isInWatchlist) MidasGreen else MidasSecondaryText,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                },
                 showDivider = index < assets.lastIndex,
             )
         }
@@ -227,8 +238,8 @@ private fun SearchEmptyView(query: String) {
 }
 
 private val previewPopular = listOf(
-    StableAssetUiModel("BTCUSDT", "BTC", "Bitcoin", 1, false),
-    StableAssetUiModel("ETHUSDT", "ETH", "Ethereum", 2, false),
+    AssetUiModel("BTCUSDT", "BTC", "Bitcoin", 1, false),
+    AssetUiModel("ETHUSDT", "ETH", "Ethereum", 2, false),
 )
 
 @Preview(name = "Search — Popular (Dark)", showBackground = true, backgroundColor = 0xFF000000)
@@ -248,6 +259,7 @@ private fun SearchPopularDarkPreview() {
             livePrices = livePrices,
             isDarkTheme = true,
             onThemeToggle = {},
+            onAssetClick = {},
             onEvent = {},
         )
     }
@@ -263,6 +275,7 @@ private fun SearchErrorDarkPreview() {
             livePrices = livePrices,
             isDarkTheme = true,
             onThemeToggle = {},
+            onAssetClick = {},
             onEvent = {},
         )
     }

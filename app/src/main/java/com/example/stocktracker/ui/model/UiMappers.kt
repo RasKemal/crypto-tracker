@@ -3,21 +3,13 @@ package com.example.stocktracker.ui.model
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 
-fun CryptoAsset.toStableAssetUiModel(rank: Int, isInWatchlist: Boolean): StableAssetUiModel =
-    StableAssetUiModel(
+fun CryptoAsset.toAssetUiModel(rank: Int, isInWatchlist: Boolean = false): AssetUiModel =
+    AssetUiModel(
         id = id,
         symbol = symbol,
         name = name,
         rank = rank,
         isInWatchlist = isInWatchlist,
-    )
-
-fun CryptoAsset.toWatchlistStableItemUiModel(rank: Int): WatchlistStableItemUiModel =
-    WatchlistStableItemUiModel(
-        id = id,
-        symbol = symbol,
-        name = name,
-        rank = rank,
     )
 
 fun CryptoAsset.toDetailStableUiModel(): DetailStableUiModel = DetailStableUiModel(
@@ -33,43 +25,7 @@ fun CryptoAsset.toDetailStableUiModel(): DetailStableUiModel = DetailStableUiMod
     ),
 )
 
-fun mapSearchLivePrice(tick: LivePrice?, quote: CryptoAsset?): PriceDisplayUiModel =
-    mapPriceDisplay(tick = tick, quote = quote)
-
-fun mapWatchlistLivePrice(
-    tick: LivePrice?,
-    quote: CryptoAsset?,
-    quoteFailed: Boolean,
-    quoteRequested: Boolean,
-): PriceDisplayUiModel = mapPriceDisplay(
-    tick = tick,
-    quote = quote,
-    quoteFailed = quoteFailed,
-    isLoading = !quoteRequested || (quoteRequested && quote == null && !quoteFailed && tick == null),
-)
-
-fun mapDetailLivePrice(tick: LivePrice?, quote: CryptoAsset?): PriceDisplayUiModel {
-    if (tick != null) {
-        val change = tick.changePercent24Hr ?: quote?.changePercent24Hr ?: 0.0
-        return PriceDisplayUiModel(
-            formattedPrice = tick.price.formatUsd(),
-            formattedChange = change.formatChangePercent(),
-            isPositive = change >= 0.0,
-            priceUsd = tick.price,
-        )
-    }
-    if (quote != null) {
-        return PriceDisplayUiModel(
-            formattedPrice = quote.priceUsd.formatUsd(),
-            formattedChange = quote.changePercent24Hr.formatChangePercent(),
-            isPositive = quote.changePercent24Hr >= 0.0,
-            priceUsd = quote.priceUsd,
-        )
-    }
-    return PriceDisplayUiModel.Loading
-}
-
-private fun mapPriceDisplay(
+fun mapLivePrice(
     tick: LivePrice?,
     quote: CryptoAsset?,
     quoteFailed: Boolean = false,

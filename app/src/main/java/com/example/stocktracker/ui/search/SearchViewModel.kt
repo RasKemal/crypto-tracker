@@ -1,7 +1,6 @@
 package com.example.stocktracker.ui.search
 
 import android.util.Log
-import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stocktracker.domain.model.CryptoAsset
@@ -11,10 +10,10 @@ import com.example.stocktracker.domain.usecase.GetPopularCryptosUseCase
 import com.example.stocktracker.domain.usecase.SearchAssetsUseCase
 import com.example.stocktracker.domain.util.userMessage
 import com.example.stocktracker.ui.common.LoadState
+import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.model.StableAssetUiModel
-import com.example.stocktracker.ui.model.mapSearchLivePrice
-import com.example.stocktracker.ui.model.toStableAssetUiModel
+import com.example.stocktracker.ui.model.mapLivePrice
+import com.example.stocktracker.ui.model.toAssetUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -39,20 +38,6 @@ import javax.inject.Inject
 private const val TAG = "SearchVM"
 private const val SEARCH_DEBOUNCE_MS = 350L
 
-@Immutable
-data class SearchUiState(
-    val query: String = "",
-    val isShowingPopular: Boolean = true,
-    val content: LoadState<List<StableAssetUiModel>> = LoadState.Loading,
-)
-
-sealed interface SearchEvent {
-    data class QueryChanged(val query: String) : SearchEvent
-    data class AssetClicked(val asset: StableAssetUiModel) : SearchEvent
-    data class WatchlistToggled(val asset: StableAssetUiModel) : SearchEvent
-    data object Retry : SearchEvent
-}
-
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
@@ -62,7 +47,6 @@ class SearchViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
-    private val _assets = MutableStateFlow<List<CryptoAsset>>(emptyList())
     private val _isShowingPopular = MutableStateFlow(true)
     private val _content = MutableStateFlow<LoadState<List<CryptoAsset>>>(LoadState.Loading)
     private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
@@ -75,15 +59,18 @@ class SearchViewModel @Inject constructor(
         .catch { Log.w(TAG, "watchlist flow error", it); emit(emptySet()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
+    private val assets: List<CryptoAsset>
+        get() = (_content.value as? LoadState.Success)?.data.orEmpty()
+
     val uiState: StateFlow<SearchUiState> = combine(
-        _query, _assets, _isShowingPopular, _content, watchlistIds,
-    ) { query, assets, showingPopular, content, watchlist ->
+        _query, _isShowingPopular, _content, watchlistIds,
+    ) { query, showingPopular, content, watchlist ->
         val mappedContent = when (content) {
             LoadState.Loading -> LoadState.Loading
             is LoadState.Error -> LoadState.Error(content.message)
             is LoadState.Success -> LoadState.Success(
-                assets.mapIndexed { index, asset ->
-                    asset.toStableAssetUiModel(
+                content.data.mapIndexed { index, asset ->
+                    asset.toAssetUiModel(
                         rank = index + 1,
                         isInWatchlist = asset.id in watchlist,
                     )
@@ -114,8 +101,8 @@ class SearchViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        _assets
-            .map { it.map(CryptoAsset::id) }
+        _content
+            .map { (it as? LoadState.Success)?.data.orEmpty().map(CryptoAsset::id) }
             .distinctUntilChanged()
             .flatMapLatest { ids ->
                 if (ids.isEmpty()) flowOf<LivePrice>()
@@ -133,7 +120,6 @@ class SearchViewModel @Inject constructor(
         when (event) {
             is SearchEvent.QueryChanged -> _query.update { event.query }
             is SearchEvent.WatchlistToggled -> toggleWatchlist(event.asset)
-            is SearchEvent.AssetClicked -> Unit
             SearchEvent.Retry -> if (_query.value.isBlank()) loadPopular() else performSearch(_query.value)
         }
     }
@@ -148,7 +134,6 @@ class SearchViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     Log.e(TAG, "loadPopular failed", e)
-                    _assets.value = emptyList()
                     _livePrices.value = emptyMap()
                     _content.value = LoadState.Error(
                         e.userMessage("Popüler varlıklar yüklenemedi"),
@@ -167,7 +152,6 @@ class SearchViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     Log.e(TAG, "searchAssets(\"$query\") failed", e)
-                    _assets.value = emptyList()
                     _livePrices.value = emptyMap()
                     _isShowingPopular.value = false
                     _content.value = LoadState.Error(
@@ -178,11 +162,10 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun applySnapshot(assets: List<CryptoAsset>, showingPopular: Boolean) {
-        _assets.value = assets
         _isShowingPopular.value = showingPopular
         _content.value = LoadState.Success(assets)
         _livePrices.value = assets.associate { asset ->
-            asset.id to mapSearchLivePrice(
+            asset.id to mapLivePrice(
                 tick = _liveTicks.value[asset.id],
                 quote = asset,
             )
@@ -190,19 +173,19 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun syncLivePrice(id: String) {
-        val quote = _assets.value.firstOrNull { it.id == id } ?: return
+        val quote = assets.firstOrNull { it.id == id } ?: return
         val tick = _liveTicks.value[id]
         _livePrices.update { prices ->
-            prices + (id to mapSearchLivePrice(tick = tick, quote = quote))
+            prices + (id to mapLivePrice(tick = tick, quote = quote))
         }
     }
 
-    private fun toggleWatchlist(asset: StableAssetUiModel) {
+    private fun toggleWatchlist(asset: AssetUiModel) {
         viewModelScope.launch {
             if (asset.id in watchlistIds.value) {
                 repository.removeFromWatchlist(asset.id)
             } else {
-                val cached = _assets.value.firstOrNull { it.id == asset.id }
+                val cached = assets.firstOrNull { it.id == asset.id }
                     ?: CryptoAsset(
                         id = asset.id,
                         symbol = asset.symbol,
