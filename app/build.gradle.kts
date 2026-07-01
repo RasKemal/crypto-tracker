@@ -45,6 +45,10 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions.unitTests.isReturnDefaultValues = true
+    testOptions.unitTests.all {
+        it.maxHeapSize = "2g"
+    }
 }
 
 dependencies {
@@ -87,6 +91,9 @@ dependencies {
     implementation(libs.gson)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

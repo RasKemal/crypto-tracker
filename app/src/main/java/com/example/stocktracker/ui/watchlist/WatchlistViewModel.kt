@@ -12,7 +12,6 @@ import com.example.stocktracker.domain.repository.CryptoRepository
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +19,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -31,13 +29,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "WatchlistVM"
-private const val QUOTE_REFRESH_INTERVAL_MS = 60_000L
-
-private data class QuoteFetchState(
-    val quote: CryptoAsset? = null,
-    val isLoading: Boolean = false,
-    val failed: Boolean = false,
-)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -47,7 +38,7 @@ class WatchlistViewModel @Inject constructor(
 
     private val _localQuery = MutableStateFlow("")
     private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
-    private val _quoteStates = MutableStateFlow<Map<String, QuoteFetchState>>(emptyMap())
+    private val _quotes = MutableStateFlow<Map<String, CryptoAsset?>>(emptyMap())
     private val _bannerMessageRes = MutableStateFlow<Int?>(null)
     private val _livePrices = MutableStateFlow<Map<String, PriceDisplayUiModel>>(emptyMap())
 
@@ -104,22 +95,13 @@ class WatchlistViewModel @Inject constructor(
             .onEach { items ->
                 if (items == null) return@onEach
                 val ids = items.map(CryptoAsset::id).toSet()
-                _quoteStates.update { states -> states.filterKeys { it in ids } }
-                _livePrices.update { prices -> prices.filterKeys { it in ids } }
-                _liveTicks.update { ticks -> ticks.filterKeys { it in ids } }
+                _quotes.update { it.filterKeys { key -> key in ids } }
+                _livePrices.update { it.filterKeys { key -> key in ids } }
+                _liveTicks.update { it.filterKeys { key -> key in ids } }
                 items.forEach { asset ->
-                    if (asset.id !in _quoteStates.value) fetchQuote(asset.id)
+                    if (asset.id !in _quotes.value) fetchQuote(asset.id)
                     else syncLivePrice(asset.id)
                 }
-            }
-            .launchIn(viewModelScope)
-
-        watchlist
-            .map { it.orEmpty() }
-            .distinctUntilChanged()
-            .flatMapLatest { items ->
-                if (items.isEmpty()) flowOf()
-                else tickerRefreshFlow(items.map(CryptoAsset::id))
             }
             .launchIn(viewModelScope)
     }
@@ -131,57 +113,35 @@ class WatchlistViewModel @Inject constructor(
         }
     }
 
-    private fun tickerRefreshFlow(ids: List<String>) = flow {
-        while (true) {
-            delay(QUOTE_REFRESH_INTERVAL_MS)
-            ids.forEach { fetchQuote(it, isRefresh = true) }
-            emit(Unit)
-        }
-    }
-
-    private fun fetchQuote(id: String, isRefresh: Boolean = false) {
+    private fun fetchQuote(id: String) {
         viewModelScope.launch {
-            val current = _quoteStates.value[id]
-            if (current?.isLoading == true) return@launch
-            if (!isRefresh && current?.quote != null) return@launch
-
-            _quoteStates.update { it + (id to QuoteFetchState(isLoading = true)) }
+            if (_quotes.value[id] != null) return@launch
             syncLivePrice(id)
 
             repository.getAsset(id)
                 .onSuccess { asset ->
-                    _quoteStates.update { it + (id to QuoteFetchState(quote = asset)) }
+                    _quotes.update { it + (id to asset) }
                     syncLivePrice(id)
                 }
                 .onFailure { e ->
                     Log.w(TAG, "getAsset($id) failed: ${e.message}")
-                    _quoteStates.update { states ->
-                        val previous = states[id]
-                        states + (id to QuoteFetchState(
-                            quote = previous?.quote,
-                            failed = previous?.quote == null,
-                        ))
-                    }
+                    _quotes.update { it + (id to null) }
                     syncLivePrice(id)
-                    if (isRefresh) {
-                        _bannerMessageRes.value = R.string.banner_prices_partial_update
-                    }
                 }
         }
     }
 
     private fun syncLivePrice(id: String) {
         if (watchlist.value.orEmpty().none { it.id == id }) return
-        val quoteState = _quoteStates.value[id]
-        val quoteFailed = quoteState?.failed == true && quoteState.quote == null
         val tick = _liveTicks.value[id]
-        val quote = quoteState?.quote
+        val quote = _quotes.value[id]
+        val quoteFailed = _quotes.value.containsKey(id) && quote == null
         _livePrices.update { prices ->
             prices + (id to mapLivePrice(
                 tick = tick,
                 quote = quote,
                 quoteFailed = quoteFailed,
-                isLoading = quote == null && tick == null && !quoteFailed,
+                isLoading = !_quotes.value.containsKey(id) && tick == null,
             ))
         }
     }
@@ -189,7 +149,7 @@ class WatchlistViewModel @Inject constructor(
     private fun removeAsset(id: String) {
         viewModelScope.launch {
             repository.removeFromWatchlist(id)
-            _quoteStates.update { it - id }
+            _quotes.update { it - id }
             _livePrices.update { it - id }
             _liveTicks.update { it - id }
         }
