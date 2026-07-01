@@ -12,7 +12,6 @@ import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.model.MarketSnapshot
 import com.example.stocktracker.domain.repository.CryptoRepository
 import com.example.stocktracker.domain.util.isUsdStableQuote
-import com.example.stocktracker.domain.util.userMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -37,17 +36,11 @@ class BinanceCryptoRepositoryImpl @Inject constructor(
             .sortedByDescending { it.volumeUsd24Hr ?: 0.0 }
             .distinctBy { it.symbol }
         MarketSnapshot(assets = assets)
-    }.recoverCatching { e ->
-        Log.e(TAG, "getMarketSnapshot failed", e)
-        error(e.userMessage("Piyasa verisi yüklenemedi"))
-    }
+    }.onFailure { e -> Log.e(TAG, "getMarketSnapshot failed", e) }
 
     override suspend fun getAsset(id: String): Result<CryptoAsset> = runCatching {
         api.getTicker24h(id).toDomain()
-    }.recoverCatching { e ->
-        Log.w(TAG, "getAsset($id) failed: ${e.message}")
-        error(e.userMessage("Varlık verisi yüklenemedi"))
-    }
+    }.onFailure { e -> Log.w(TAG, "getAsset($id) failed: ${e.message}") }
 
     override fun getWatchlist(): Flow<List<CryptoAsset>> =
         dao.observeWatchlist().map { entities -> entities.map { it.toDomain() } }

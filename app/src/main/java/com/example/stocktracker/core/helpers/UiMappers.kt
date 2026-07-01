@@ -1,29 +1,34 @@
-package com.example.stocktracker.ui.model
+package com.example.stocktracker.core.helpers
 
+import com.example.stocktracker.R
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
+import com.example.stocktracker.ui.model.AssetUiModel
+import com.example.stocktracker.ui.model.DetailStableUiModel
+import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.model.StatRowUiModel
 
-fun CryptoAsset.toAssetUiModel(rank: Int, isInWatchlist: Boolean = false): AssetUiModel =
+fun CryptoAsset.toAssetUiModel(isInWatchlist: Boolean = false): AssetUiModel =
     AssetUiModel(
         id = id,
         symbol = symbol,
         name = name,
-        rank = rank,
         isInWatchlist = isInWatchlist,
     )
 
-fun CryptoAsset.toDetailStableUiModel(): DetailStableUiModel = DetailStableUiModel(
-    pairLabel = "$symbol/$quoteAsset",
-    rangeStats = listOf(
-        StatRowUiModel("En Yüksek", high24Hr.formatUsdOrDash()),
-        StatRowUiModel("En Düşük", low24Hr.formatUsdOrDash()),
-        StatRowUiModel("Ortalama (VWAP)", vwap24Hr.formatUsdOrDash()),
-    ),
-    activityStats = listOf(
-        StatRowUiModel("24s Hacim", volumeUsd24Hr.formatLargeUsdOrDash()),
-        StatRowUiModel("Çift", "$symbol/$quoteAsset"),
-    ),
-)
+fun CryptoAsset.toDetailStableUiModel(): DetailStableUiModel =
+    DetailStableUiModel(
+        pairLabel = "$symbol/$quoteAsset",
+        rangeStats = listOf(
+            StatRowUiModel(R.string.stat_high, high24Hr.formatUsdOrDash()),
+            StatRowUiModel(R.string.stat_low, low24Hr.formatUsdOrDash()),
+            StatRowUiModel(R.string.stat_vwap, vwap24Hr.formatUsdOrDash()),
+        ),
+        activityStats = listOf(
+            StatRowUiModel(R.string.stat_volume_24h, volumeUsd24Hr.formatLargeUsdOrDash()),
+            StatRowUiModel(R.string.stat_pair, "$symbol/$quoteAsset"),
+        ),
+    )
 
 fun mapLivePrice(
     tick: LivePrice?,
@@ -53,7 +58,7 @@ fun mapLivePrice(
             formattedPrice = "--",
             formattedChange = "",
             isPositive = false,
-            errorMessage = "Fiyat yüklenemedi",
+            priceLoadFailed = true,
         )
     }
     if (isLoading) {

@@ -1,8 +1,8 @@
-package com.example.stocktracker.di
+package com.example.stocktracker.core.di
 
 import android.content.Context
 import androidx.room.Room
-import com.example.stocktracker.data.local.MidasDatabase
+import com.example.stocktracker.data.local.CryptoDatabase
 import com.example.stocktracker.data.local.dao.CryptoDao
 import dagger.Module
 import dagger.Provides
@@ -17,16 +17,16 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideMidasDatabase(
+    fun provideCryptoDatabase(
         @ApplicationContext context: Context,
-    ): MidasDatabase = Room.databaseBuilder(
+    ): CryptoDatabase = Room.databaseBuilder(
         context,
-        MidasDatabase::class.java,
-        MidasDatabase.DATABASE_NAME,
+        CryptoDatabase::class.java,
+        CryptoDatabase.DATABASE_NAME,
     ).build()
 
     @Provides
     @Singleton
-    fun provideCryptoDao(database: MidasDatabase): CryptoDao =
+    fun provideCryptoDao(database: CryptoDatabase): CryptoDao =
         database.cryptoDao()
 }

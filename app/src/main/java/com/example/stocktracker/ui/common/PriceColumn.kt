@@ -9,19 +9,24 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.stocktracker.R
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.theme.MidasGreen
-import com.example.stocktracker.ui.theme.MidasRed
+import com.example.stocktracker.ui.theme.CryptoGreen
+import com.example.stocktracker.ui.theme.CryptoRed
 
 @Composable
 fun PriceColumn(
-    price: PriceDisplayUiModel,
+    livePrices: State<Map<String, PriceDisplayUiModel>>,
+    assetId: String,
     modifier: Modifier = Modifier,
 ) {
+    val price = livePrices.value[assetId] ?: PriceDisplayUiModel.Loading
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.End,
@@ -42,7 +47,7 @@ fun PriceColumn(
                 }
                 Box(modifier = Modifier.height(18.dp))
             }
-            price.errorMessage != null -> {
+            price.priceLoadFailed -> {
                 Text(
                     text = price.formattedPrice,
                     style = MaterialTheme.typography.titleSmall,
@@ -50,16 +55,18 @@ fun PriceColumn(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = price.errorMessage,
+                    text = stringResource(R.string.error_price_load),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     maxLines = 1,
                 )
             }
             else -> {
-                AnimatedPrice(
-                    formattedPrice = price.formattedPrice,
-                    priceUsd = price.priceUsd ?: 0.0,
+                Text(
+                    text = price.formattedPrice,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.SemiBold,
                 )
                 ChangeLabel(price.formattedChange, price.isPositive)
             }
@@ -72,7 +79,7 @@ private fun ChangeLabel(formatted: String, isPositive: Boolean) {
     Text(
         text = formatted,
         style = MaterialTheme.typography.titleSmall,
-        color = if (isPositive) MidasGreen else MidasRed,
+        color = if (isPositive) CryptoGreen else CryptoRed,
         fontWeight = FontWeight.SemiBold,
     )
 }

@@ -12,51 +12,51 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val MidasDarkColorScheme = darkColorScheme(
-    primary = MidasOnBackground,
-    onPrimary = MidasBlack,
-    primaryContainer = MidasSurface,
-    onPrimaryContainer = MidasOnBackground,
-    secondary = MidasSecondaryText,
-    onSecondary = MidasBlack,
-    secondaryContainer = MidasSurfaceVariant,
-    onSecondaryContainer = MidasOnBackground,
-    tertiary = MidasTertiaryText,
-    onTertiary = MidasBlack,
-    background = MidasBlack,
-    onBackground = MidasOnBackground,
-    surface = MidasSurface,
-    onSurface = MidasOnBackground,
-    surfaceVariant = MidasSurfaceVariant,
-    onSurfaceVariant = MidasSecondaryText,
-    outline = MidasDivider,
-    outlineVariant = MidasSurfaceElevated,
-    inverseSurface = MidasOnBackground,
-    inverseOnSurface = MidasBlack,
+private val CryptoDarkColorScheme = darkColorScheme(
+    primary = CryptoOnBackground,
+    onPrimary = CryptoBlack,
+    primaryContainer = CryptoSurface,
+    onPrimaryContainer = CryptoOnBackground,
+    secondary = CryptoSecondaryText,
+    onSecondary = CryptoBlack,
+    secondaryContainer = CryptoSurfaceVariant,
+    onSecondaryContainer = CryptoOnBackground,
+    tertiary = CryptoTertiaryText,
+    onTertiary = CryptoBlack,
+    background = CryptoBlack,
+    onBackground = CryptoOnBackground,
+    surface = CryptoSurface,
+    onSurface = CryptoOnBackground,
+    surfaceVariant = CryptoSurfaceVariant,
+    onSurfaceVariant = CryptoSecondaryText,
+    outline = CryptoDivider,
+    outlineVariant = CryptoSurfaceElevated,
+    inverseSurface = CryptoOnBackground,
+    inverseOnSurface = CryptoBlack,
     scrim = Color(0x99000000),
 )
 
-private val MidasLightColorScheme = lightColorScheme(
+private val CryptoLightColorScheme = lightColorScheme(
     primary = Color(0xFF000000),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = MidasLightSurface,
+    primaryContainer = CryptoLightSurface,
     onPrimaryContainer = Color(0xFF000000),
-    secondary = MidasLightSecondaryText,
+    secondary = CryptoLightSecondaryText,
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = MidasLightSurfaceVariant,
+    secondaryContainer = CryptoLightSurfaceVariant,
     onSecondaryContainer = Color(0xFF000000),
-    tertiary = MidasLightSecondaryText,
+    tertiary = CryptoLightSecondaryText,
     onTertiary = Color(0xFFFFFFFF),
-    background = MidasLightBackground,
+    background = CryptoLightBackground,
     onBackground = Color(0xFF000000),
-    surface = MidasLightSurface,
+    surface = CryptoLightSurface,
     onSurface = Color(0xFF000000),
-    surfaceVariant = MidasLightSurfaceVariant,
-    onSurfaceVariant = MidasLightSecondaryText,
-    outline = MidasLightDivider,
-    outlineVariant = MidasLightSurfaceVariant,
-    inverseSurface = MidasBlack,
-    inverseOnSurface = MidasOnBackground,
+    surfaceVariant = CryptoLightSurfaceVariant,
+    onSurfaceVariant = CryptoLightSecondaryText,
+    outline = CryptoLightDivider,
+    outlineVariant = CryptoLightSurfaceVariant,
+    inverseSurface = CryptoBlack,
+    inverseOnSurface = CryptoOnBackground,
     scrim = Color(0x66000000),
 )
 
@@ -65,7 +65,7 @@ fun StockTrackerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) MidasDarkColorScheme else MidasLightColorScheme
+    val colorScheme = if (darkTheme) CryptoDarkColorScheme else CryptoLightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {

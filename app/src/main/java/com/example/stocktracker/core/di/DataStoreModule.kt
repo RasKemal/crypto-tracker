@@ -1,4 +1,4 @@
-package com.example.stocktracker.di
+package com.example.stocktracker.core.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -12,7 +12,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
-    name = "midas_settings",
+    name = "crypto_settings",
 )
 
 @Module

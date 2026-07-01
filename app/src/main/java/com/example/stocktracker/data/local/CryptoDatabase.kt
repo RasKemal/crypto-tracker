@@ -10,10 +10,10 @@ import com.example.stocktracker.data.local.entity.CryptoEntity
     version = 1,
     exportSchema = false,
 )
-abstract class MidasDatabase : RoomDatabase() {
+abstract class CryptoDatabase : RoomDatabase() {
     abstract fun cryptoDao(): CryptoDao
 
     companion object {
-        const val DATABASE_NAME = "midas_binance.db"
+        const val DATABASE_NAME = "crypto_binance.db"
     }
 }

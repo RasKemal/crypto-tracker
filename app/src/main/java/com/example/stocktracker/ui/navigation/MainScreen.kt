@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -54,7 +55,7 @@ fun MainScreen(
                 enter = fadeIn(tween(200)),
                 exit = fadeOut(tween(200)),
             ) {
-                MidasBottomBar(
+                CryptoBottomBar(
                     currentDestination = currentDestination,
                     onNavigate = { destination ->
                         navController.navigate(destination.route) {
@@ -121,7 +122,7 @@ fun MainScreen(
 }
 
 @Composable
-private fun MidasBottomBar(
+private fun CryptoBottomBar(
     currentDestination: NavDestination?,
     onNavigate: (AppDestination.Tab) -> Unit,
 ) {
@@ -141,7 +142,7 @@ private fun MidasBottomBar(
                     Icon(
                         imageVector = if (isSelected) destination.selectedIcon
                         else destination.unselectedIcon,
-                        contentDescription = destination.contentDescription,
+                        contentDescription = stringResource(destination.contentDescriptionRes),
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(

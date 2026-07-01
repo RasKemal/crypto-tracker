@@ -24,17 +24,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.stocktracker.R
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
-fun MidasSearchBar(
+fun CryptoSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Aramak için bir şey yaz",
+    placeholder: String = stringResource(R.string.search_default_placeholder),
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -77,7 +79,7 @@ fun MidasSearchBar(
             IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(20.dp)) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
-                    contentDescription = "Temizle",
+                    contentDescription = stringResource(R.string.action_clear),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )
@@ -88,16 +90,16 @@ fun MidasSearchBar(
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun MidasSearchBarEmptyPreview() {
+private fun CryptoSearchBarEmptyPreview() {
     StockTrackerTheme(darkTheme = true) {
-        MidasSearchBar(query = "", onQueryChange = {}, modifier = Modifier.padding(16.dp))
+        CryptoSearchBar(query = "", onQueryChange = {}, modifier = Modifier.padding(16.dp))
     }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun MidasSearchBarFilledPreview() {
+private fun CryptoSearchBarFilledPreview() {
     StockTrackerTheme(darkTheme = true) {
-        MidasSearchBar(query = "Apple", onQueryChange = {}, modifier = Modifier.padding(16.dp))
+        CryptoSearchBar(query = "Apple", onQueryChange = {}, modifier = Modifier.padding(16.dp))
     }
 }

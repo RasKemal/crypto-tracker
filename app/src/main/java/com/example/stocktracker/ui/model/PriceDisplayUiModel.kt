@@ -9,7 +9,7 @@ data class PriceDisplayUiModel(
     val isPositive: Boolean,
     val priceUsd: Double? = null,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null,
+    val priceLoadFailed: Boolean = false,
 ) {
     companion object {
         val Loading = PriceDisplayUiModel(

@@ -32,24 +32,30 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.stocktracker.ui.common.AnimatedPrice
+import com.example.stocktracker.R
 import com.example.stocktracker.ui.common.AssetAvatar
 import com.example.stocktracker.ui.common.LoadState
+import com.example.stocktracker.ui.common.UiMessage
+import com.example.stocktracker.ui.common.asString
 import com.example.stocktracker.ui.model.DetailStableUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.model.StatRowUiModel
-import com.example.stocktracker.ui.theme.MidasGreen
-import com.example.stocktracker.ui.theme.MidasRed
+import com.example.stocktracker.ui.theme.CryptoGreen
+import com.example.stocktracker.ui.theme.CryptoRed
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
@@ -58,7 +64,7 @@ fun DetailScreen(
     viewModel: DetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val livePrices by viewModel.livePrices.collectAsStateWithLifecycle()
+    val livePrices = viewModel.livePrices.collectAsStateWithLifecycle()
     DetailContent(
         uiState = uiState,
         livePrices = livePrices,
@@ -71,7 +77,7 @@ fun DetailScreen(
 @Composable
 fun DetailContent(
     uiState: DetailUiState,
-    livePrices: Map<String, PriceDisplayUiModel>,
+    livePrices: State<Map<String, PriceDisplayUiModel>>,
     onBack: () -> Unit,
     onEvent: (DetailEvent) -> Unit,
     modifier: Modifier = Modifier,
@@ -96,7 +102,7 @@ fun DetailContent(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.action_back),
                         tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }
@@ -105,8 +111,14 @@ fun DetailContent(
                 IconButton(onClick = { onEvent(DetailEvent.ToggleWatchlist) }) {
                     Icon(
                         imageVector = if (uiState.isInWatchlist) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                        contentDescription = if (uiState.isInWatchlist) "Listeden çıkar" else "Listeye ekle",
-                        tint = if (uiState.isInWatchlist) MidasGreen else MaterialTheme.colorScheme.onBackground,
+                        contentDescription = stringResource(
+                            if (uiState.isInWatchlist) {
+                                R.string.action_watchlist_remove
+                            } else {
+                                R.string.action_watchlist_add
+                            },
+                        ),
+                        tint = if (uiState.isInWatchlist) CryptoGreen else MaterialTheme.colorScheme.onBackground,
                     )
                 }
             },
@@ -128,8 +140,9 @@ fun DetailContent(
                 )
                 is LoadState.Success -> DetailBody(
                     symbol = uiState.symbol,
+                    assetId = uiState.id,
                     content = content.data,
-                    price = livePrices[uiState.id] ?: PriceDisplayUiModel.Loading,
+                    livePrices = livePrices,
                 )
             }
         }
@@ -139,8 +152,9 @@ fun DetailContent(
 @Composable
 private fun DetailBody(
     symbol: String,
+    assetId: String,
     content: DetailStableUiModel,
-    price: PriceDisplayUiModel,
+    livePrices: State<Map<String, PriceDisplayUiModel>>,
 ) {
     Column(
         modifier = Modifier
@@ -163,27 +177,40 @@ private fun DetailBody(
             }
         }
 
-        Column {
-            Text("Fiyat", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(4.dp))
-            AnimatedPrice(
-                formattedPrice = price.formattedPrice,
-                priceUsd = price.priceUsd ?: 0.0,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "${price.formattedChange}  •  24s",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (price.isPositive) MidasGreen else MidasRed,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
+        DetailPriceSection(livePrices = livePrices, assetId = assetId)
 
-        StatGroup(title = "24 Saatlik Aralık", rows = content.rangeStats)
-        StatGroup(title = "Piyasa Aktivitesi", rows = content.activityStats)
+        StatGroup(title = stringResource(R.string.detail_range_title), rows = content.rangeStats)
+        StatGroup(title = stringResource(R.string.detail_activity_title), rows = content.activityStats)
 
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun DetailPriceSection(
+    livePrices: State<Map<String, PriceDisplayUiModel>>,
+    assetId: String,
+) {
+    val price = livePrices.value[assetId] ?: PriceDisplayUiModel.Loading
+    Column {
+        Text(
+            stringResource(R.string.detail_price_label),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = price.formattedPrice,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = stringResource(R.string.detail_change_24h, price.formattedChange),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (price.isPositive) CryptoGreen else CryptoRed,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -203,7 +230,7 @@ private fun StatGroup(title: String, rows: List<StatRowUiModel>) {
                 .background(MaterialTheme.colorScheme.surface),
         ) {
             rows.forEachIndexed { index, row ->
-                StatRow(row.label, row.value)
+                StatRow(row.labelRes, row.value)
                 if (index < rows.lastIndex) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outline,
@@ -217,13 +244,13 @@ private fun StatGroup(title: String, rows: List<StatRowUiModel>) {
 }
 
 @Composable
-private fun StatRow(label: String, value: String) {
+private fun StatRow(@androidx.annotation.StringRes labelRes: Int, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(labelRes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold)
     }
 }
@@ -240,21 +267,21 @@ private fun DetailLoading() {
 }
 
 @Composable
-private fun DetailError(message: String, onRetry: () -> Unit) {
+private fun DetailError(message: UiMessage, onRetry: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = message,
+            text = message.asString(),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
-            Text("Tekrar dene")
+            Text(stringResource(R.string.action_retry))
         }
     }
 }
@@ -272,26 +299,30 @@ private fun DetailPreview() {
                     DetailStableUiModel(
                         pairLabel = "BTC/USDT",
                         rangeStats = listOf(
-                            StatRowUiModel("En Yüksek", "\$68,120.00"),
-                            StatRowUiModel("En Düşük", "\$65,870.00"),
-                            StatRowUiModel("Ortalama (VWAP)", "\$67,180.00"),
+                            StatRowUiModel(R.string.stat_high, "\$68,120.00"),
+                            StatRowUiModel(R.string.stat_low, "\$65,870.00"),
+                            StatRowUiModel(R.string.stat_vwap, "\$67,180.00"),
                         ),
                         activityStats = listOf(
-                            StatRowUiModel("24s Hacim", "\$42.00B"),
-                            StatRowUiModel("Çift", "BTC/USDT"),
+                            StatRowUiModel(R.string.stat_volume_24h, "\$42.00B"),
+                            StatRowUiModel(R.string.stat_pair, "BTC/USDT"),
                         ),
                     ),
                 ),
                 isInWatchlist = true,
             ),
-            livePrices = mapOf(
-                "BTCUSDT" to PriceDisplayUiModel(
-                    formattedPrice = "\$67,400.10",
-                    formattedChange = "%2,62",
-                    isPositive = true,
-                    priceUsd = 67_400.10,
-                ),
-            ),
+            livePrices = remember {
+                mutableStateOf(
+                    mapOf(
+                        "BTCUSDT" to PriceDisplayUiModel(
+                            formattedPrice = "\$67,400.10",
+                            formattedChange = "%2,62",
+                            isPositive = true,
+                            priceUsd = 67_400.10,
+                        ),
+                    ),
+                )
+            },
             onBack = {},
             onEvent = {},
         )

@@ -31,16 +31,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.stocktracker.R
 import com.example.stocktracker.ui.common.AssetListItem
-import com.example.stocktracker.ui.common.MidasSearchBar
+import com.example.stocktracker.ui.common.CryptoSearchBar
 import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.theme.MidasSecondaryText
+import com.example.stocktracker.ui.theme.CryptoSecondaryText
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
@@ -78,7 +80,7 @@ fun WatchlistContent(
         TopAppBar(
             title = {
                 Text(
-                    text = "İzleme Listesi",
+                    text = stringResource(R.string.watchlist_title),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
@@ -87,7 +89,7 @@ fun WatchlistContent(
                 IconButton(onClick = onThemeToggle) {
                     Icon(
                         imageVector = if (isDarkTheme) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
-                        contentDescription = "Tema değiştir",
+                        contentDescription = stringResource(R.string.action_toggle_theme),
                         tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }
@@ -97,16 +99,16 @@ fun WatchlistContent(
             ),
         )
 
-        MidasSearchBar(
+        CryptoSearchBar(
             query = uiState.localQuery,
             onQueryChange = { onEvent(WatchlistEvent.LocalQueryChanged(it)) },
-            placeholder = "İzleme listesinde ara",
+            placeholder = stringResource(R.string.watchlist_search_placeholder),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
-        uiState.bannerMessage?.let { message ->
+        uiState.bannerMessageRes?.let { messageRes ->
             Text(
-                text = message,
+                text = stringResource(messageRes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -151,8 +153,8 @@ private fun WatchlistItemsList(
                     IconButton(onClick = onRemoveClick, modifier = Modifier.size(36.dp)) {
                         Icon(
                             imageVector = Icons.Rounded.RemoveCircleOutline,
-                            contentDescription = "İzleme listesinden çıkar",
-                            tint = MidasSecondaryText,
+                            contentDescription = stringResource(R.string.action_watchlist_remove_from_list),
+                            tint = CryptoSecondaryText,
                             modifier = Modifier.size(18.dp),
                         )
                     }
@@ -189,14 +191,14 @@ private fun WatchlistEmptyView() {
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "İzleme listeniz boş",
+            text = stringResource(R.string.watchlist_empty_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Keşfet ekranından kripto ekleyerek\nfiyatları buradan takip edebilirsiniz.",
+            text = stringResource(R.string.watchlist_empty_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -211,7 +213,7 @@ private fun WatchlistNoResultsView(query: String) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "\"$query\" için sonuç bulunamadı",
+            text = stringResource(R.string.watchlist_no_results, query),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -220,8 +222,8 @@ private fun WatchlistNoResultsView(query: String) {
 }
 
 private val previewWatchlistItems = listOf(
-    AssetUiModel("BTCUSDT", "BTC", "Bitcoin", 1),
-    AssetUiModel("ETHUSDT", "ETH", "Ethereum", 2),
+    AssetUiModel("BTCUSDT", "BTC", "Bitcoin"),
+    AssetUiModel("ETHUSDT", "ETH", "Ethereum"),
 )
 
 @Preview(name = "Watchlist — Populated (Dark)", showBackground = true, backgroundColor = 0xFF000000)

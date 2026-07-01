@@ -7,11 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
-import com.example.stocktracker.domain.util.userMessage
+import com.example.stocktracker.R
 import com.example.stocktracker.ui.common.LoadState
+import com.example.stocktracker.ui.common.toUiMessage
+import com.example.stocktracker.core.helpers.mapLivePrice
+import com.example.stocktracker.core.helpers.toDetailStableUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.model.mapLivePrice
-import com.example.stocktracker.ui.model.toDetailStableUiModel
 import com.example.stocktracker.ui.navigation.AppDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -103,7 +104,7 @@ class DetailViewModel @Inject constructor(
             .launchIn(viewModelScope)
 
         snapshotRefreshFlow()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Unit)
+            .launchIn(viewModelScope)
     }
 
     fun onEvent(event: DetailEvent) {
@@ -136,7 +137,7 @@ class DetailViewModel @Inject constructor(
                     Log.e(TAG, "getAsset($assetId) failed", e)
                     if (_asset.value == null) {
                         _content.value = LoadState.Error(
-                            e.userMessage("Varlık verisi yüklenemedi"),
+                            e.toUiMessage(R.string.error_asset_data),
                         )
                     }
                 }

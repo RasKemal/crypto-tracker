@@ -3,13 +3,13 @@ package com.example.stocktracker.ui.watchlist
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.stocktracker.R
+import com.example.stocktracker.core.helpers.mapLivePrice
+import com.example.stocktracker.core.helpers.toAssetUiModel
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
-import com.example.stocktracker.domain.util.userMessage
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.model.mapLivePrice
-import com.example.stocktracker.ui.model.toAssetUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -36,7 +36,7 @@ private const val QUOTE_REFRESH_INTERVAL_MS = 60_000L
 private data class QuoteFetchState(
     val quote: CryptoAsset? = null,
     val isLoading: Boolean = false,
-    val error: String? = null,
+    val failed: Boolean = false,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,7 +48,7 @@ class WatchlistViewModel @Inject constructor(
     private val _localQuery = MutableStateFlow("")
     private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
     private val _quoteStates = MutableStateFlow<Map<String, QuoteFetchState>>(emptyMap())
-    private val _bannerMessage = MutableStateFlow<String?>(null)
+    private val _bannerMessageRes = MutableStateFlow<Int?>(null)
     private val _livePrices = MutableStateFlow<Map<String, PriceDisplayUiModel>>(emptyMap())
 
     val livePrices: StateFlow<Map<String, PriceDisplayUiModel>> = _livePrices
@@ -57,8 +57,8 @@ class WatchlistViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val uiState: StateFlow<WatchlistUiState> = combine(
-        watchlist, _localQuery, _bannerMessage,
-    ) { assets, query, banner ->
+        watchlist, _localQuery, _bannerMessageRes,
+    ) { assets, query, bannerRes ->
         if (assets == null) return@combine WatchlistUiState(isLoading = true)
 
         val filtered = if (query.isBlank()) assets
@@ -70,11 +70,11 @@ class WatchlistViewModel @Inject constructor(
         WatchlistUiState(
             isLoading = false,
             localQuery = query,
-            items = filtered.mapIndexed { index, asset ->
-                asset.toAssetUiModel(rank = index + 1)
+            items = filtered.map { asset ->
+                asset.toAssetUiModel()
             },
             isEmpty = assets.isEmpty(),
-            bannerMessage = banner,
+            bannerMessageRes = bannerRes,
         )
     }.stateIn(
         viewModelScope,
@@ -92,10 +92,10 @@ class WatchlistViewModel @Inject constructor(
             }
             .catch { e ->
                 Log.w(TAG, "live prices flow error", e)
-                _bannerMessage.value = "Canlı fiyat bağlantısı kesildi"
+                _bannerMessageRes.value = R.string.banner_live_feed_disconnected
             }
             .onEach {
-                _bannerMessage.value = null
+                _bannerMessageRes.value = null
                 _liveTicks.update { map -> map + (it.id to it) }
                 syncLivePrice(it.id)
             }
@@ -122,7 +122,7 @@ class WatchlistViewModel @Inject constructor(
                 if (items.isEmpty()) flowOf()
                 else tickerRefreshFlow(items.map(CryptoAsset::id))
             }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Unit)
+            .launchIn(viewModelScope)
     }
 
     fun onEvent(event: WatchlistEvent) {
@@ -156,17 +156,16 @@ class WatchlistViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     Log.w(TAG, "getAsset($id) failed: ${e.message}")
-                    val message = e.userMessage("Fiyat yüklenemedi")
                     _quoteStates.update { states ->
                         val previous = states[id]
                         states + (id to QuoteFetchState(
                             quote = previous?.quote,
-                            error = if (previous?.quote == null) message else null,
+                            failed = previous?.quote == null,
                         ))
                     }
                     syncLivePrice(id)
                     if (isRefresh) {
-                        _bannerMessage.value = "Bazı fiyatlar güncellenemedi"
+                        _bannerMessageRes.value = R.string.banner_prices_partial_update
                     }
                 }
         }
@@ -175,7 +174,7 @@ class WatchlistViewModel @Inject constructor(
     private fun syncLivePrice(id: String) {
         if (watchlist.value.orEmpty().none { it.id == id }) return
         val quoteState = _quoteStates.value[id]
-        val quoteFailed = quoteState?.error != null && quoteState.quote == null
+        val quoteFailed = quoteState?.failed == true && quoteState.quote == null
         val tick = _liveTicks.value[id]
         val quote = quoteState?.quote
         _livePrices.update { prices ->

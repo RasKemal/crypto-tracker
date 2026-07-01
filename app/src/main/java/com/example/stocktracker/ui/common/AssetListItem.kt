@@ -41,35 +41,24 @@ fun AssetListItem(
                 .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RankLabel(rank = asset.rank)
-            Spacer(Modifier.width(10.dp))
             AssetAvatar(symbol = asset.symbol)
             Spacer(Modifier.width(12.dp))
             SymbolDescription(asset.symbol, asset.name, Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))
             PriceColumn(
-                price = livePrices.value[asset.id] ?: PriceDisplayUiModel.Loading,
+                livePrices = livePrices,
+                assetId = asset.id,
             )
             trailingIcon()
         }
         if (showDivider) {
             HorizontalDivider(
-                modifier = Modifier.padding(start = 78.dp),
+                modifier = Modifier.padding(start = 60.dp),
                 color = MaterialTheme.colorScheme.outline,
                 thickness = 0.5.dp,
             )
         }
     }
-}
-
-@Composable
-private fun RankLabel(rank: Int) {
-    Text(
-        text = rank.toString(),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.width(20.dp),
-    )
 }
 
 @Composable
@@ -104,7 +93,7 @@ private fun AssetListItemPreview() {
     StockTrackerTheme(darkTheme = true) {
         Column {
             AssetListItem(
-                asset = AssetUiModel("BTCUSDT", "BTC", "Bitcoin", 1, false),
+                asset = AssetUiModel("BTCUSDT", "BTC", "Bitcoin", false),
                 livePrices = livePrices,
                 onClick = {},
                 trailingIcon = {},

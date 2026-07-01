@@ -11,7 +11,7 @@ class SearchAssetsUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(query: String): Result<List<CryptoAsset>> = runCatching {
         val q = query.trim().uppercase()
-        require(q.isNotBlank()) { "Arama terimi boş olamaz" }
+        require(q.isNotBlank())
 
         val snapshot = repository.getMarketSnapshot().getOrThrow()
         snapshot.assets.asSequence()

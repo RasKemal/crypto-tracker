@@ -1,6 +1,6 @@
 # Stock Tracker — Technical Documentation
 
-Crypto watchlist app (Midas-style UI) backed by Binance Spot public API. Clean Architecture with strict layer separation.
+Crypto watchlist app backed by Binance Spot public API. Clean Architecture with strict layer separation.
 
 ```
 Presentation (ui/)  →  Domain (domain/)  →  Data (data/)
@@ -118,7 +118,7 @@ When BTC trades as BTCUSDT, BTCUSDC, and BTCFDUSD, USDT wins. Prevents duplicate
 
 - **`CryptoEntity`** — watchlist table. Stores id, symbol, name, addedAt. **No prices.**
 - **`CryptoDao`** — `observeWatchlist()` Flow, insert (REPLACE on conflict), delete
-- **`MidasDatabase`** — `midas_binance.db`
+- **`CryptoDatabase`** — `crypto_binance.db`
 
 ### `AssetNames.kt`
 
@@ -172,9 +172,6 @@ Stable and volatile models are composed at the screen layer, not in ViewModels:
 - `formatUsd()` — scale-aware ($67,401.23 vs $0.1642)
 - `formatChangePercent()` — Turkish locale (`%2,45`, `-%1,20`)
 - `formatLargeUsd()` — K/M/B/T suffixes
-
-`AnimatedPrice` — green/red flash on price change (skips first value to avoid load flash).
-
 ### Navigation
 
 - Bottom tabs: Watchlist (start), Search
@@ -183,7 +180,7 @@ Stable and volatile models are composed at the screen layer, not in ViewModels:
 
 ### Theme
 
-- Custom Midas palette (Material You disabled)
+- Custom Crypto palette (Material You disabled)
 - Dark/light toggle via DataStore (`is_dark_theme`)
 - `ThemeViewModel` uses `SharingStarted.Eagerly` to avoid theme flash on cold start
 - `avatarPalette` — deterministic color from symbol hash
@@ -195,8 +192,8 @@ Stable and volatile models are composed at the screen layer, not in ViewModels:
 | Module | Provides |
 |---|---|
 | `NetworkModule` | OkHttpClient, Retrofit, Gson, `BinanceApi`, `@Named("binance_stream_url")` |
-| `DatabaseModule` | `MidasDatabase`, `CryptoDao` |
-| `DataStoreModule` | `DataStore<Preferences>` (`midas_settings`) |
+| `DatabaseModule` | `CryptoDatabase`, `CryptoDao` |
+| `DataStoreModule` | `DataStore<Preferences>` (`crypto_settings`) |
 | `RepositoryModule` | `BinanceCryptoRepositoryImpl`, `BinancePopularCryptoRepositoryImpl` |
 
 ---

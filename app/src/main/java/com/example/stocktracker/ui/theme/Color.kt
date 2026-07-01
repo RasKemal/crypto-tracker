@@ -2,24 +2,24 @@ package com.example.stocktracker.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val MidasBlack = Color(0xFF000000)
-val MidasSurface = Color(0xFF1C1C1E)
-val MidasSurfaceVariant = Color(0xFF2C2C2E)
-val MidasSurfaceElevated = Color(0xFF3A3A3C)
-val MidasDivider = Color(0xFF38383A)
+val CryptoBlack = Color(0xFF000000)
+val CryptoSurface = Color(0xFF1C1C1E)
+val CryptoSurfaceVariant = Color(0xFF2C2C2E)
+val CryptoSurfaceElevated = Color(0xFF3A3A3C)
+val CryptoDivider = Color(0xFF38383A)
 
-val MidasOnBackground = Color(0xFFFFFFFF)
-val MidasSecondaryText = Color(0xFF8E8E93)
-val MidasTertiaryText = Color(0xFF636366)
+val CryptoOnBackground = Color(0xFFFFFFFF)
+val CryptoSecondaryText = Color(0xFF8E8E93)
+val CryptoTertiaryText = Color(0xFF636366)
 
-val MidasLightBackground = Color(0xFFF2F2F7)
-val MidasLightSurface = Color(0xFFFFFFFF)
-val MidasLightSurfaceVariant = Color(0xFFE5E5EA)
-val MidasLightDivider = Color(0xFFC6C6C8)
-val MidasLightSecondaryText = Color(0xFF6C6C70)
+val CryptoLightBackground = Color(0xFFF2F2F7)
+val CryptoLightSurface = Color(0xFFFFFFFF)
+val CryptoLightSurfaceVariant = Color(0xFFE5E5EA)
+val CryptoLightDivider = Color(0xFFC6C6C8)
+val CryptoLightSecondaryText = Color(0xFF6C6C70)
 
-val MidasGreen = Color(0xFF34C759)
-val MidasRed = Color(0xFFFF3B30)
+val CryptoGreen = Color(0xFF34C759)
+val CryptoRed = Color(0xFFFF3B30)
 
 val AvatarBlue = Color(0xFF0A84FF)
 val AvatarTeal = Color(0xFF5AC8FA)

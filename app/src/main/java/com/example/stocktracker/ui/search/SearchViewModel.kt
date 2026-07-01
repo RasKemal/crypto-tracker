@@ -8,12 +8,14 @@ import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
 import com.example.stocktracker.domain.usecase.GetPopularCryptosUseCase
 import com.example.stocktracker.domain.usecase.SearchAssetsUseCase
-import com.example.stocktracker.domain.util.userMessage
+import com.example.stocktracker.ui.common.toUiMessage
+import com.example.stocktracker.R
 import com.example.stocktracker.ui.common.LoadState
+import com.example.stocktracker.ui.common.toUiMessage
+import com.example.stocktracker.core.helpers.mapLivePrice
+import com.example.stocktracker.core.helpers.toAssetUiModel
 import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
-import com.example.stocktracker.ui.model.mapLivePrice
-import com.example.stocktracker.ui.model.toAssetUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -69,9 +71,8 @@ class SearchViewModel @Inject constructor(
             LoadState.Loading -> LoadState.Loading
             is LoadState.Error -> LoadState.Error(content.message)
             is LoadState.Success -> LoadState.Success(
-                content.data.mapIndexed { index, asset ->
+                content.data.map { asset ->
                     asset.toAssetUiModel(
-                        rank = index + 1,
                         isInWatchlist = asset.id in watchlist,
                     )
                 },
@@ -136,7 +137,7 @@ class SearchViewModel @Inject constructor(
                     Log.e(TAG, "loadPopular failed", e)
                     _livePrices.value = emptyMap()
                     _content.value = LoadState.Error(
-                        e.userMessage("Popüler varlıklar yüklenemedi"),
+                        e.toUiMessage(R.string.error_popular_assets),
                     )
                 }
         }
@@ -155,7 +156,7 @@ class SearchViewModel @Inject constructor(
                     _livePrices.value = emptyMap()
                     _isShowingPopular.value = false
                     _content.value = LoadState.Error(
-                        e.userMessage("Arama başarısız"),
+                        e.toUiMessage(R.string.error_search),
                     )
                 }
         }

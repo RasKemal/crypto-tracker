@@ -1,5 +1,6 @@
 package com.example.stocktracker.ui.model
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 
 @Immutable
@@ -7,7 +8,6 @@ data class AssetUiModel(
     val id: String,
     val symbol: String,
     val name: String,
-    val rank: Int,
     val isInWatchlist: Boolean = false,
 )
 
@@ -20,6 +20,6 @@ data class DetailStableUiModel(
 
 @Immutable
 data class StatRowUiModel(
-    val label: String,
+    @param:StringRes val labelRes: Int,
     val value: String,
 )

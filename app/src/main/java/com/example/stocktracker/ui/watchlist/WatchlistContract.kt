@@ -1,5 +1,6 @@
 package com.example.stocktracker.ui.watchlist
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import com.example.stocktracker.ui.model.AssetUiModel
 
@@ -9,7 +10,7 @@ data class WatchlistUiState(
     val localQuery: String = "",
     val items: List<AssetUiModel> = emptyList(),
     val isEmpty: Boolean = false,
-    val bannerMessage: String? = null,
+    @param:StringRes val bannerMessageRes: Int? = null,
 )
 
 sealed interface WatchlistEvent {

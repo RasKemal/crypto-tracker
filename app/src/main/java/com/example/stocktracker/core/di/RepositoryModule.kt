@@ -1,4 +1,4 @@
-package com.example.stocktracker.di
+package com.example.stocktracker.core.di
 
 import com.example.stocktracker.data.repository.BinanceCryptoRepositoryImpl
 import com.example.stocktracker.domain.repository.CryptoRepository

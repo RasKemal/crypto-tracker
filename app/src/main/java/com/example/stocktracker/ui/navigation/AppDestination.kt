@@ -1,7 +1,9 @@
 package com.example.stocktracker.ui.navigation
 
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import com.example.stocktracker.R
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Bookmark
@@ -12,21 +14,21 @@ sealed class AppDestination(val route: String) {
 
     sealed class Tab(
         route: String,
-        val contentDescription: String,
+        @StringRes val contentDescriptionRes: Int,
         val selectedIcon: ImageVector,
         val unselectedIcon: ImageVector,
     ) : AppDestination(route)
 
     data object Watchlist : Tab(
         route = "watchlist",
-        contentDescription = "İzleme Listesi",
+        contentDescriptionRes = R.string.nav_watchlist,
         selectedIcon = Icons.Rounded.Bookmark,
         unselectedIcon = Icons.Outlined.BookmarkBorder,
     )
 
     data object Search : Tab(
         route = "search",
-        contentDescription = "Keşfet",
+        contentDescriptionRes = R.string.nav_search,
         selectedIcon = Icons.Rounded.Search,
         unselectedIcon = Icons.Outlined.Search,
     )
