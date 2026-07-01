@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stocktracker.R
-import com.example.stocktracker.ui.common.AssetAvatar
+import com.example.stocktracker.ui.common.CryptoAssetAvatar
 import com.example.stocktracker.ui.util.LoadState
 import com.example.stocktracker.ui.util.UiMessage
 import com.example.stocktracker.ui.util.asString
@@ -166,7 +166,7 @@ private fun DetailBody(
         Spacer(Modifier.height(8.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AssetAvatar(symbol = symbol, modifier = Modifier.size(56.dp))
+            CryptoAssetAvatar(symbol = symbol, modifier = Modifier.size(56.dp))
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

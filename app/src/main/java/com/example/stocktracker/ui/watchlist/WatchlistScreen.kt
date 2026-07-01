@@ -38,9 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stocktracker.R
-import com.example.stocktracker.ui.common.AssetListItem
+import com.example.stocktracker.ui.common.CryptoAssetListItem
 import com.example.stocktracker.ui.common.CryptoSearchBar
-import com.example.stocktracker.ui.model.AssetUiModel
+import com.example.stocktracker.ui.model.CryptoAssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.theme.CryptoSecondaryText
 import com.example.stocktracker.ui.theme.StockTrackerTheme
@@ -72,7 +72,7 @@ fun WatchlistContent(
     livePrices: State<Map<String, PriceDisplayUiModel>>,
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
-    onAssetClick: (AssetUiModel) -> Unit,
+    onAssetClick: (CryptoAssetUiModel) -> Unit,
     onEvent: (WatchlistEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -136,16 +136,16 @@ fun WatchlistContent(
 
 @Composable
 private fun WatchlistItemsList(
-    items: List<AssetUiModel>,
+    items: List<CryptoAssetUiModel>,
     livePrices: State<Map<String, PriceDisplayUiModel>>,
-    onItemClick: (AssetUiModel) -> Unit,
-    onRemove: (AssetUiModel) -> Unit,
+    onItemClick: (CryptoAssetUiModel) -> Unit,
+    onRemove: (CryptoAssetUiModel) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
             val onClick = remember(item.id) { { onItemClick(item) } }
             val onRemoveClick = remember(item.id) { { onRemove(item) } }
-            AssetListItem(
+            CryptoAssetListItem(
                 asset = item,
                 livePrices = livePrices,
                 onClick = onClick,
@@ -222,8 +222,8 @@ private fun WatchlistNoResultsView(query: String) {
 }
 
 private val previewWatchlistItems = listOf(
-    AssetUiModel("BTCUSDT", "BTC", "Bitcoin"),
-    AssetUiModel("ETHUSDT", "ETH", "Ethereum"),
+    CryptoAssetUiModel("BTCUSDT", "BTC", "Bitcoin"),
+    CryptoAssetUiModel("ETHUSDT", "ETH", "Ethereum"),
 )
 
 @Preview(name = "Watchlist — Populated (Dark)", showBackground = true, backgroundColor = 0xFF000000)

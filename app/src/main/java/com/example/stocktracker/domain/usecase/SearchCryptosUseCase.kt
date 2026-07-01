@@ -6,7 +6,7 @@ import javax.inject.Inject
 
 private const val MAX_SEARCH_RESULTS = 30
 
-class SearchAssetsUseCase @Inject constructor(
+class SearchCryptosUseCase @Inject constructor(
     private val repository: CryptoRepository,
 ) {
     suspend operator fun invoke(query: String): Result<List<CryptoAsset>> = runCatching {

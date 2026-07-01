@@ -41,12 +41,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stocktracker.R
-import com.example.stocktracker.ui.common.AssetListItem
+import com.example.stocktracker.ui.common.CryptoAssetListItem
 import com.example.stocktracker.ui.util.LoadState
 import com.example.stocktracker.ui.util.UiMessage
 import com.example.stocktracker.ui.util.asString
 import com.example.stocktracker.ui.common.CryptoSearchBar
-import com.example.stocktracker.ui.model.AssetUiModel
+import com.example.stocktracker.ui.model.CryptoAssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.theme.CryptoGreen
 import com.example.stocktracker.ui.theme.CryptoSecondaryText
@@ -79,7 +79,7 @@ fun SearchContent(
     livePrices: State<Map<String, PriceDisplayUiModel>>,
     isDarkTheme: Boolean,
     onThemeToggle: () -> Unit,
-    onAssetClick: (AssetUiModel) -> Unit,
+    onAssetClick: (CryptoAssetUiModel) -> Unit,
     onEvent: (SearchEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -143,10 +143,10 @@ fun SearchContent(
 @Composable
 private fun AssetList(
     header: String?,
-    assets: List<AssetUiModel>,
+    assets: List<CryptoAssetUiModel>,
     livePrices: State<Map<String, PriceDisplayUiModel>>,
-    onAssetClick: (AssetUiModel) -> Unit,
-    onWatchlistToggle: (AssetUiModel) -> Unit,
+    onAssetClick: (CryptoAssetUiModel) -> Unit,
+    onWatchlistToggle: (CryptoAssetUiModel) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         if (header != null) {
@@ -165,7 +165,7 @@ private fun AssetList(
         itemsIndexed(assets, key = { _, asset -> asset.id }) { index, asset ->
             val onClick = remember(asset.id) { { onAssetClick(asset) } }
             val onToggle = remember(asset.id) { { onWatchlistToggle(asset) } }
-            AssetListItem(
+            CryptoAssetListItem(
                 asset = asset,
                 livePrices = livePrices,
                 onClick = onClick,
@@ -252,8 +252,8 @@ private fun SearchEmptyView(query: String) {
 }
 
 private val previewPopular = listOf(
-    AssetUiModel("BTCUSDT", "BTC", "Bitcoin", false),
-    AssetUiModel("ETHUSDT", "ETH", "Ethereum", false),
+    CryptoAssetUiModel("BTCUSDT", "BTC", "Bitcoin", false),
+    CryptoAssetUiModel("ETHUSDT", "ETH", "Ethereum", false),
 )
 
 @Preview(name = "Search — Popular (Dark)", showBackground = true, backgroundColor = 0xFF000000)

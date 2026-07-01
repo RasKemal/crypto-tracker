@@ -10,10 +10,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 
-class SearchAssetsUseCaseTest {
+class SearchCryptosUseCaseTest {
 
     private val repository: CryptoRepository = mockk()
-    private val useCase = SearchAssetsUseCase(repository)
+    private val useCase = SearchCryptosUseCase(repository)
 
     private fun asset(symbol: String, name: String = symbol) = CryptoAsset(
         id = "${symbol}USDT", symbol = symbol, name = name,

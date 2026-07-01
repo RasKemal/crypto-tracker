@@ -3,13 +3,13 @@ package com.example.stocktracker.ui.util
 import com.example.stocktracker.R
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
-import com.example.stocktracker.ui.model.AssetUiModel
+import com.example.stocktracker.ui.model.CryptoAssetUiModel
 import com.example.stocktracker.ui.model.DetailStableUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.model.StatRowUiModel
 
-fun CryptoAsset.toAssetUiModel(isInWatchlist: Boolean = false): AssetUiModel =
-    AssetUiModel(
+fun CryptoAsset.toCryptoAssetUiModel(isInWatchlist: Boolean = false): CryptoAssetUiModel =
+    CryptoAssetUiModel(
         id = id,
         symbol = symbol,
         name = name,

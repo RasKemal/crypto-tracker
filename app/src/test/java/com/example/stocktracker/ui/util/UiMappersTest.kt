@@ -16,8 +16,8 @@ class UiMappersTest {
     )
 
     @Test
-    fun `toAssetUiModel maps fields correctly`() {
-        val ui = btcAsset.toAssetUiModel(isInWatchlist = true)
+    fun `toCryptoAssetUiModel maps fields correctly`() {
+        val ui = btcAsset.toCryptoAssetUiModel(isInWatchlist = true)
         assertEquals("BTCUSDT", ui.id)
         assertEquals("BTC", ui.symbol)
         assertEquals("Bitcoin", ui.name)
@@ -25,8 +25,8 @@ class UiMappersTest {
     }
 
     @Test
-    fun `toAssetUiModel defaults isInWatchlist to false`() {
-        assertFalse(btcAsset.toAssetUiModel().isInWatchlist)
+    fun `toCryptoAssetUiModel defaults isInWatchlist to false`() {
+        assertFalse(btcAsset.toCryptoAssetUiModel().isInWatchlist)
     }
 
     @Test

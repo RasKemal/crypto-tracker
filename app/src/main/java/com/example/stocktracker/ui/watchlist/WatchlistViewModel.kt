@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stocktracker.R
 import com.example.stocktracker.ui.util.mapLivePrice
-import com.example.stocktracker.ui.util.toAssetUiModel
+import com.example.stocktracker.ui.util.toCryptoAssetUiModel
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
@@ -62,7 +62,7 @@ class WatchlistViewModel @Inject constructor(
             isLoading = false,
             localQuery = query,
             items = filtered.map { asset ->
-                asset.toAssetUiModel()
+                asset.toCryptoAssetUiModel()
             },
             isEmpty = assets.isEmpty(),
             bannerMessageRes = bannerRes,

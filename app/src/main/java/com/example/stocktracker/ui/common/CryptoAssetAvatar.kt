@@ -21,7 +21,7 @@ import com.example.stocktracker.ui.theme.avatarPalette
 import kotlin.math.absoluteValue
 
 @Composable
-fun AssetAvatar(
+fun CryptoAssetAvatar(
     symbol: String,
     modifier: Modifier = Modifier,
     size: Dp = 46.dp,
@@ -44,11 +44,11 @@ fun AssetAvatar(
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun AssetAvatarPreview() {
+private fun CryptoAssetAvatarPreview() {
     StockTrackerTheme(darkTheme = true) {
         Box {
             listOf("BTC", "ETH", "SOL", "DOGE", "XRP").forEach {
-                AssetAvatar(symbol = it, modifier = Modifier.size(46.dp))
+                CryptoAssetAvatar(symbol = it, modifier = Modifier.size(46.dp))
             }
         }
     }

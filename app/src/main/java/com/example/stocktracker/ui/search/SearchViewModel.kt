@@ -7,14 +7,13 @@ import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
 import com.example.stocktracker.domain.usecase.GetPopularCryptosUseCase
-import com.example.stocktracker.domain.usecase.SearchAssetsUseCase
+import com.example.stocktracker.domain.usecase.SearchCryptosUseCase
 import com.example.stocktracker.ui.util.toUiMessage
 import com.example.stocktracker.R
 import com.example.stocktracker.ui.util.LoadState
-import com.example.stocktracker.ui.util.toUiMessage
 import com.example.stocktracker.ui.util.mapLivePrice
-import com.example.stocktracker.ui.util.toAssetUiModel
-import com.example.stocktracker.ui.model.AssetUiModel
+import com.example.stocktracker.ui.util.toCryptoAssetUiModel
+import com.example.stocktracker.ui.model.CryptoAssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,7 +43,7 @@ private const val SEARCH_DEBOUNCE_MS = 350L
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: CryptoRepository,
-    private val searchAssets: SearchAssetsUseCase,
+    private val searchCryptos: SearchCryptosUseCase,
     private val getPopularCryptos: GetPopularCryptosUseCase,
 ) : ViewModel() {
 
@@ -72,7 +71,7 @@ class SearchViewModel @Inject constructor(
             is LoadState.Error -> LoadState.Error(content.message)
             is LoadState.Success -> LoadState.Success(
                 content.data.map { asset ->
-                    asset.toAssetUiModel(
+                    asset.toCryptoAssetUiModel(
                         isInWatchlist = asset.id in watchlist,
                     )
                 },
@@ -145,7 +144,7 @@ class SearchViewModel @Inject constructor(
     private fun performSearch(query: String) {
         viewModelScope.launch {
             _content.value = LoadState.Loading
-            searchAssets(query)
+            searchCryptos(query)
                 .onSuccess { results ->
                     applySnapshot(results, showingPopular = false)
                 }
@@ -187,7 +186,7 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    private fun toggleWatchlist(asset: AssetUiModel) {
+    private fun toggleWatchlist(asset: CryptoAssetUiModel) {
         viewModelScope.launch {
             if (asset.id in watchlistIds.value) {
                 repository.removeFromWatchlist(asset.id)

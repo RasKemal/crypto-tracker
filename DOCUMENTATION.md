@@ -33,7 +33,7 @@ Only where there is real application logic — not thin repository wrappers:
 
 | Use case | Responsibility |
 |---|---|
-| `SearchAssetsUseCase` | Client-side search scoring + stable-pair resolution |
+| `SearchCryptosUseCase` | Client-side search scoring + stable-pair resolution |
 | `GetPopularCryptosUseCase` | Top-10 by 24h quote volume, deduplicated by base |
 
 ViewModels call `CryptoRepository` directly for watchlist, live prices, and single-asset fetch.
@@ -144,7 +144,7 @@ Two separate exposed flows — stable list and volatile prices are never merged 
 - `livePrices` — `Map<String, PriceDisplayUiModel>` (updates on WS ticks; re-seeded from REST on snapshot change)
 
 - Empty query → `GetPopularCryptosUseCase`
-- Non-empty → debounced 350ms → `SearchAssetsUseCase`
+- Non-empty → debounced 350ms → `SearchCryptosUseCase`
 - WS: `flatMapLatest` on visible id set; ticks update `livePrices` entry-by-entry
 
 ### Watchlist (`WatchlistViewModel`)
@@ -166,7 +166,7 @@ Two separate exposed flows — stable list and volatile prices are never merged 
 - REST snapshot on load + every 60s
 - Composables join stable content with `livePrices[id]` for the price block
 
-### UI models (`AssetUiModel.kt`)
+### UI models (`CryptoAssetUiModel.kt`)
 
 Stable and volatile models are composed at the screen layer, not in ViewModels:
 - `formatUsd()` — scale-aware ($67,401.23 vs $0.1642)

@@ -20,13 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.stocktracker.ui.model.AssetUiModel
+import com.example.stocktracker.ui.model.CryptoAssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 
 @Composable
-fun AssetListItem(
-    asset: AssetUiModel,
+fun CryptoAssetListItem(
+    asset: CryptoAssetUiModel,
     livePrices: State<Map<String, PriceDisplayUiModel>>,
     onClick: () -> Unit,
     trailingIcon: @Composable () -> Unit,
@@ -41,7 +41,7 @@ fun AssetListItem(
                 .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AssetAvatar(symbol = asset.symbol)
+            CryptoAssetAvatar(symbol = asset.symbol)
             Spacer(Modifier.width(12.dp))
             SymbolDescription(asset.symbol, asset.name, Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))
@@ -81,7 +81,7 @@ private fun SymbolDescription(symbol: String, name: String, modifier: Modifier =
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
-private fun AssetListItemPreview() {
+private fun CryptoAssetListItemPreview() {
     val livePrices = remember {
         mutableStateOf(
             mapOf(
@@ -92,8 +92,8 @@ private fun AssetListItemPreview() {
     }
     StockTrackerTheme(darkTheme = true) {
         Column {
-            AssetListItem(
-                asset = AssetUiModel("BTCUSDT", "BTC", "Bitcoin", false),
+            CryptoAssetListItem(
+                asset = CryptoAssetUiModel("BTCUSDT", "BTC", "Bitcoin", false),
                 livePrices = livePrices,
                 onClick = {},
                 trailingIcon = {},

@@ -4,7 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 
 @Immutable
-data class AssetUiModel(
+data class CryptoAssetUiModel(
     val id: String,
     val symbol: String,
     val name: String,
