@@ -15,7 +15,7 @@ The application follows Clean Architecture principles, separating concerns into 
 ### Networking and Market Catalog
 
 * **Binance REST Integration:** The app consumes Binance Spot public endpoints without authentication. `GET /ticker/24hr` request  powers both search and popular-asset discovery.
-* **Room Backed Cache:** The market catalog is persisted in Room (`market_assets`) rather than held in memory. A 1-hour Time-to-Live (TTL) policy is tracked in DataStore (`market_last_fetched_at`). Before triggering a network refresh, the repository evaluates cache age and only fetches when stale or empty.
+* **Room Backed Cache:** The market catalog is persisted in Room (`market_assets`). A 1-hour Time-to-Live (TTL) policy is tracked in DataStore (`market_last_fetched_at`). Before triggering a network refresh, the repository evaluates cache age and only fetches when stale or empty.
 
 ### Real-Time Price Streaming
 
