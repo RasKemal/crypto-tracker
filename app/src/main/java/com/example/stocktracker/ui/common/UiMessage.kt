@@ -14,10 +14,8 @@ sealed interface UiMessage {
     data class Text(val value: String) : UiMessage
 }
 
-fun Throwable.toUiMessage(@StringRes fallbackRes: Int): UiMessage {
-    val msg = message?.takeIf { it.isNotBlank() }
-    return if (msg != null) UiMessage.Text(msg) else UiMessage.Resource(fallbackRes)
-}
+fun Throwable.toUiMessage(@StringRes fallbackRes: Int): UiMessage =
+    UiMessage.Resource(fallbackRes)
 
 @Composable
 fun UiMessage.asString(): String = when (this) {

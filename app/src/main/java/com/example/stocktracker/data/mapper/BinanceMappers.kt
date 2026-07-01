@@ -33,6 +33,8 @@ internal fun Ticker24hDto.toMarketEntity(): MarketAssetEntity? {
         id = symbol,
         symbol = base,
         name = AssetNames.friendly(base),
+        priceUsd = lastPrice?.toDoubleOrNull() ?: 0.0,
+        changePercent24Hr = priceChangePercent?.toDoubleOrNull() ?: 0.0,
         volumeUsd24Hr = quoteVolume?.toDoubleOrNull(),
     )
 }
@@ -42,8 +44,8 @@ fun MarketAssetEntity.toDomain(): CryptoAsset = CryptoAsset(
     symbol = symbol,
     name = name,
     quoteAsset = stripUsdStableQuote(id).let { id.removePrefix(it) },
-    priceUsd = 0.0,
-    changePercent24Hr = 0.0,
+    priceUsd = priceUsd,
+    changePercent24Hr = changePercent24Hr,
     volumeUsd24Hr = volumeUsd24Hr,
 )
 

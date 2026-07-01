@@ -286,7 +286,7 @@ private fun SearchErrorDarkPreview() {
     StockTrackerTheme(darkTheme = true) {
         SearchContent(
             uiState = SearchUiState(
-                content = LoadState.Error(UiMessage.Resource(R.string.error_market_data)),
+                content = LoadState.Error(UiMessage.Resource(R.string.error_popular_assets)),
             ),
             livePrices = livePrices,
             isDarkTheme = true,

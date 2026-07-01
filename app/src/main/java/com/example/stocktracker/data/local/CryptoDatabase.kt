@@ -9,7 +9,7 @@ import com.example.stocktracker.data.local.entity.MarketAssetEntity
 
 @Database(
     entities = [WatchlistEntity::class, MarketAssetEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class CryptoDatabase : RoomDatabase() {

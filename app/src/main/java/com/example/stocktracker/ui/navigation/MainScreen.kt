@@ -12,6 +12,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -72,7 +73,7 @@ fun MainScreen(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = AppDestination.Watchlist.route,
+            startDestination = AppDestination.Search.route,
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(
@@ -145,9 +146,17 @@ private fun CryptoBottomBar(
                         contentDescription = stringResource(destination.contentDescriptionRes),
                     )
                 },
+                label = {
+                    Text(
+                        text = stringResource(destination.contentDescriptionRes),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.onBackground,
+                    selectedTextColor = MaterialTheme.colorScheme.onBackground,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     indicatorColor = Color.Transparent,
                 ),
             )

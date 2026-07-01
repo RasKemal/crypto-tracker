@@ -43,6 +43,6 @@ sealed class AppDestination(val route: String) {
     }
 
     companion object {
-        val tabs: List<Tab> = listOf(Watchlist, Search)
+        val tabs: List<Tab> = listOf(Search, Watchlist)
     }
 }

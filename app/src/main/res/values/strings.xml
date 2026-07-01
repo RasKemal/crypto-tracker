@@ -1,11 +1,9 @@
 <resources>
     <string name="app_name">StockTracker</string>
 
-    <!-- Navigation -->
     <string name="nav_watchlist">İzleme Listesi</string>
     <string name="nav_search">Keşfet</string>
 
-    <!-- Common actions -->
     <string name="action_retry">Tekrar dene</string>
     <string name="action_back">Geri</string>
     <string name="action_clear">Temizle</string>
@@ -15,42 +13,35 @@
     <string name="action_watchlist_remove_from_list">İzleme listesinden çıkar</string>
     <string name="search_default_placeholder">Aramak için bir şey yaz</string>
 
-    <!-- Search -->
     <string name="search_title">Keşfet</string>
     <string name="search_placeholder">Kripto ara</string>
     <string name="search_popular_header">Popüler</string>
     <string name="search_no_results">\"%1$s\" için sonuç bulunamadı</string>
     <string name="search_no_results_hint">Farklı bir terim deneyin (örn. \"bitcoin\", \"sol\").</string>
 
-    <!-- Watchlist -->
     <string name="watchlist_title">İzleme Listesi</string>
     <string name="watchlist_search_placeholder">İzleme listesinde ara</string>
     <string name="watchlist_empty_title">İzleme listeniz boş</string>
     <string name="watchlist_empty_body">Keşfet ekranından kripto ekleyerek\nfiyatları buradan takip edebilirsiniz.</string>
     <string name="watchlist_no_results">\"%1$s\" için sonuç bulunamadı</string>
 
-    <!-- Detail -->
     <string name="detail_price_label">Fiyat</string>
     <string name="detail_change_24h">%1$s  •  24s</string>
     <string name="detail_range_title">24 Saatlik Aralık</string>
     <string name="detail_activity_title">Piyasa Aktivitesi</string>
 
-    <!-- Detail stats -->
     <string name="stat_high">En Yüksek</string>
     <string name="stat_low">En Düşük</string>
     <string name="stat_vwap">Ortalama (VWAP)</string>
     <string name="stat_volume_24h">24s Hacim</string>
     <string name="stat_pair">Çift</string>
 
-    <!-- Errors -->
-    <string name="error_market_data">Piyasa verisi yüklenemedi</string>
-    <string name="error_popular_assets">Popüler varlıklar yüklenemedi</string>
+    <string name="error_popular_assets">Piyasa verisi yüklenemedi. Bağlantınızı kontrol ediniz.</string>
     <string name="error_search">Arama başarısız</string>
-    <string name="error_asset_data">Varlık verisi yüklenemedi</string>
+    <string name="error_asset_data">Detay yüklenemedi. Bağlantınızı kontrol ediniz.</string>
     <string name="error_price_load">Fiyat yüklenemedi</string>
-    <string name="error_search_query_blank">Arama terimi boş olamaz</string>
 
-    <!-- Banners -->
+
     <string name="banner_live_feed_disconnected">Canlı fiyat bağlantısı kesildi</string>
     <string name="banner_prices_partial_update">Bazı fiyatlar güncellenemedi</string>
 </resources>

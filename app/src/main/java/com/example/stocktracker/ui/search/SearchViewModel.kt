@@ -166,18 +166,26 @@ class SearchViewModel @Inject constructor(
         _isShowingPopular.value = showingPopular
         _content.value = LoadState.Success(assets)
         _livePrices.value = assets.associate { asset ->
+            val tick = _liveTicks.value[asset.id]
+            val quote = asset.takeIf { it.priceUsd != 0.0 }
             asset.id to mapLivePrice(
-                tick = _liveTicks.value[asset.id],
-                quote = asset,
+                tick = tick,
+                quote = quote,
+                isLoading = tick == null && quote == null,
             )
         }
     }
 
     private fun syncLivePrice(id: String) {
-        val quote = assets.firstOrNull { it.id == id } ?: return
+        val asset = assets.firstOrNull { it.id == id } ?: return
         val tick = _liveTicks.value[id]
+        val quote = asset.takeIf { it.priceUsd != 0.0 }
         _livePrices.update { prices ->
-            prices + (id to mapLivePrice(tick = tick, quote = quote))
+            prices + (id to mapLivePrice(
+                tick = tick,
+                quote = quote,
+                isLoading = tick == null && quote == null,
+            ))
         }
     }
 

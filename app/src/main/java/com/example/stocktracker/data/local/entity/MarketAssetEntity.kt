@@ -8,5 +8,7 @@ data class MarketAssetEntity(
     @PrimaryKey val id: String,
     val symbol: String,
     val name: String,
+    val priceUsd: Double,
+    val changePercent24Hr: Double,
     val volumeUsd24Hr: Double?,
 )
