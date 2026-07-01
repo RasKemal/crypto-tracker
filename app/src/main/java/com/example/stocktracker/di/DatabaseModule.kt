@@ -1,4 +1,4 @@
-package com.example.stocktracker.core.di
+package com.example.stocktracker.di
 
 import android.content.Context
 import androidx.room.Room

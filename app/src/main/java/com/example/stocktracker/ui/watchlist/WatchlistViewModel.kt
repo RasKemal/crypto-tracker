@@ -4,8 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stocktracker.R
-import com.example.stocktracker.core.helpers.mapLivePrice
-import com.example.stocktracker.core.helpers.toAssetUiModel
+import com.example.stocktracker.ui.util.mapLivePrice
+import com.example.stocktracker.ui.util.toAssetUiModel
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
@@ -90,8 +90,7 @@ class WatchlistViewModel @Inject constructor(
                 if (ids.isEmpty()) flowOf<LivePrice>()
                 else repository.observeLivePrices(ids)
             }
-            .catch { e ->
-                Log.w(TAG, "live prices flow error", e)
+            .catch {
                 _bannerMessageRes.value = R.string.banner_live_feed_disconnected
             }
             .onEach {

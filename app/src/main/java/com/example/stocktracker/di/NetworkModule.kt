@@ -1,4 +1,4 @@
-package com.example.stocktracker.core.di
+package com.example.stocktracker.di
 
 import com.example.stocktracker.BuildConfig
 import com.example.stocktracker.data.remote.api.BinanceApi

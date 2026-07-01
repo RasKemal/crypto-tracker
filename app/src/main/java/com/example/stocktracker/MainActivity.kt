@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.stocktracker.ui.navigation.MainScreen
 import com.example.stocktracker.ui.theme.StockTrackerTheme
 import com.example.stocktracker.ui.theme.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint

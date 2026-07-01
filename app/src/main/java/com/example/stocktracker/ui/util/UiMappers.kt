@@ -1,4 +1,4 @@
-package com.example.stocktracker.core.helpers
+package com.example.stocktracker.ui.util
 
 import com.example.stocktracker.R
 import com.example.stocktracker.domain.model.CryptoAsset

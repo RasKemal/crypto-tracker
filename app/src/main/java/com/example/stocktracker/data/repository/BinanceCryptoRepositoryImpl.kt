@@ -50,7 +50,6 @@ class BinanceCryptoRepositoryImpl @Inject constructor(
             marketAssetDao.deleteAll()
             marketAssetDao.insertAll(entities)
             preferences.setMarketLastFetchedAt(System.currentTimeMillis())
-            Log.d(TAG, "market assets refreshed (${entities.size} symbols)")
         } catch (e: Exception) {
             Log.w(TAG, "market refresh failed: ${e.message}")
             if (cached.isEmpty()) throw e

@@ -1,4 +1,4 @@
-package com.example.stocktracker.ui.common
+package com.example.stocktracker.ui.util
 
 import androidx.compose.runtime.Immutable
 

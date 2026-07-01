@@ -1,4 +1,4 @@
-package com.example.stocktracker.core.helpers
+package com.example.stocktracker.ui.util
 
 import java.util.Locale
 import kotlin.math.abs

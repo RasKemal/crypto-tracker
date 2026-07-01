@@ -1,4 +1,4 @@
-package com.example.stocktracker.ui.navigation
+package com.example.stocktracker
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -28,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.stocktracker.ui.navigation.AppDestination
 import com.example.stocktracker.ui.detail.DetailScreen
 import com.example.stocktracker.ui.search.SearchScreen
 import com.example.stocktracker.ui.watchlist.WatchlistScreen

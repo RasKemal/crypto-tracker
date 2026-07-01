@@ -8,10 +8,10 @@ import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
 import com.example.stocktracker.R
-import com.example.stocktracker.ui.common.LoadState
-import com.example.stocktracker.ui.common.toUiMessage
-import com.example.stocktracker.core.helpers.mapLivePrice
-import com.example.stocktracker.core.helpers.toDetailStableUiModel
+import com.example.stocktracker.ui.util.LoadState
+import com.example.stocktracker.ui.util.toUiMessage
+import com.example.stocktracker.ui.util.mapLivePrice
+import com.example.stocktracker.ui.util.toDetailStableUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.navigation.AppDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,7 +58,7 @@ class DetailViewModel @Inject constructor(
 
     private val watchlistIds: StateFlow<Set<String>> = repository.getWatchlist()
         .map { list -> list.map(CryptoAsset::id).toSet() }
-        .catch { Log.w(TAG, "watchlist flow error", it); emit(emptySet()) }
+        .catch { emit(emptySet()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     val uiState: StateFlow<DetailUiState> = combine(
@@ -94,7 +94,7 @@ class DetailViewModel @Inject constructor(
         loadAsset()
 
         repository.observeLivePrices(listOf(assetId))
-            .catch { Log.w(TAG, "live tick flow error", it) }
+            .catch { Log.e(TAG, "live tick flow error", it) }
             .onEach { tick ->
                 if (tick.id == assetId) {
                     _liveTick.value = tick

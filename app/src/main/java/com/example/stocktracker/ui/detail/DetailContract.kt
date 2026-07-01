@@ -1,7 +1,7 @@
 package com.example.stocktracker.ui.detail
 
 import androidx.compose.runtime.Immutable
-import com.example.stocktracker.ui.common.LoadState
+import com.example.stocktracker.ui.util.LoadState
 import com.example.stocktracker.ui.model.DetailStableUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 

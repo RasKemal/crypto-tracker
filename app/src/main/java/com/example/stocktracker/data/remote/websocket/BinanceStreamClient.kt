@@ -45,14 +45,9 @@ class BinanceStreamClient @Inject constructor(
     private fun openConnection(symbols: List<String>): Flow<LivePrice> = callbackFlow {
         val streamNames = symbols.joinToString("/") { "${it.lowercase()}@ticker" }
         val url = "$streamBaseUrl?streams=$streamNames"
-        Log.d(TAG, "open: ${symbols.size} symbol(s) ${symbols.take(5)}${if (symbols.size > 5) "…" else ""}")
         val request = Request.Builder().url(url).build()
 
         val listener = object : WebSocketListener() {
-
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.d(TAG, "onOpen ${response.code}")
-            }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 runCatching {
@@ -71,13 +66,11 @@ class BinanceStreamClient @Inject constructor(
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                Log.d(TAG, "onClosing $code $reason")
                 if (code == NORMAL_CLOSURE_CODE) close()
                 else close(StreamDroppedException("closing $code: $reason"))
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Log.d(TAG, "onClosed $code $reason")
                 if (code == NORMAL_CLOSURE_CODE) close()
                 else close(StreamDroppedException("closed $code: $reason"))
             }

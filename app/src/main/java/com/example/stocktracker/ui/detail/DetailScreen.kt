@@ -48,9 +48,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.stocktracker.R
 import com.example.stocktracker.ui.common.AssetAvatar
-import com.example.stocktracker.ui.common.LoadState
-import com.example.stocktracker.ui.common.UiMessage
-import com.example.stocktracker.ui.common.asString
+import com.example.stocktracker.ui.util.LoadState
+import com.example.stocktracker.ui.util.UiMessage
+import com.example.stocktracker.ui.util.asString
 import com.example.stocktracker.ui.model.DetailStableUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.model.StatRowUiModel

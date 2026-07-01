@@ -8,12 +8,12 @@ import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
 import com.example.stocktracker.domain.usecase.GetPopularCryptosUseCase
 import com.example.stocktracker.domain.usecase.SearchAssetsUseCase
-import com.example.stocktracker.ui.common.toUiMessage
+import com.example.stocktracker.ui.util.toUiMessage
 import com.example.stocktracker.R
-import com.example.stocktracker.ui.common.LoadState
-import com.example.stocktracker.ui.common.toUiMessage
-import com.example.stocktracker.core.helpers.mapLivePrice
-import com.example.stocktracker.core.helpers.toAssetUiModel
+import com.example.stocktracker.ui.util.LoadState
+import com.example.stocktracker.ui.util.toUiMessage
+import com.example.stocktracker.ui.util.mapLivePrice
+import com.example.stocktracker.ui.util.toAssetUiModel
 import com.example.stocktracker.ui.model.AssetUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,7 +58,7 @@ class SearchViewModel @Inject constructor(
 
     private val watchlistIds: StateFlow<Set<String>> = repository.getWatchlist()
         .map { list -> list.map(CryptoAsset::id).toSet() }
-        .catch { Log.w(TAG, "watchlist flow error", it); emit(emptySet()) }
+        .catch { emit(emptySet()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     private val assets: List<CryptoAsset>
@@ -109,7 +109,7 @@ class SearchViewModel @Inject constructor(
                 if (ids.isEmpty()) flowOf<LivePrice>()
                 else repository.observeLivePrices(ids)
             }
-            .catch { Log.w(TAG, "live prices flow error", it) }
+            .catch { Log.e(TAG, "live prices flow error", it) }
             .onEach { tick ->
                 _liveTicks.update { it + (tick.id to tick) }
                 syncLivePrice(tick.id)
@@ -130,7 +130,6 @@ class SearchViewModel @Inject constructor(
             _content.value = LoadState.Loading
             getPopularCryptos()
                 .onSuccess { popular ->
-                    Log.d(TAG, "loadPopular → ${popular.size} assets")
                     applySnapshot(popular, showingPopular = true)
                 }
                 .onFailure { e ->
@@ -148,7 +147,6 @@ class SearchViewModel @Inject constructor(
             _content.value = LoadState.Loading
             searchAssets(query)
                 .onSuccess { results ->
-                    Log.d(TAG, "searchAssets(\"$query\") → ${results.size} results")
                     applySnapshot(results, showingPopular = false)
                 }
                 .onFailure { e ->
