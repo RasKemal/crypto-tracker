@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "watchlist")
-data class CryptoEntity(
+data class WatchlistEntity(
     @PrimaryKey val id: String,
     val symbol: String,
     val name: String,

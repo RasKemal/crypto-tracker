@@ -2,12 +2,11 @@ package com.example.stocktracker.domain.repository
 
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
-import com.example.stocktracker.domain.model.MarketSnapshot
 import kotlinx.coroutines.flow.Flow
 
 interface CryptoRepository {
 
-    suspend fun getMarketSnapshot(): Result<MarketSnapshot>
+    suspend fun getMarketSnapshot(): Result<List<CryptoAsset>>
 
     suspend fun getAsset(id: String): Result<CryptoAsset>
 

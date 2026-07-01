@@ -2,16 +2,19 @@ package com.example.stocktracker.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import com.example.stocktracker.data.local.dao.CryptoDao
-import com.example.stocktracker.data.local.entity.CryptoEntity
+import com.example.stocktracker.data.local.dao.WatchlistDao
+import com.example.stocktracker.data.local.dao.MarketAssetDao
+import com.example.stocktracker.data.local.entity.WatchlistEntity
+import com.example.stocktracker.data.local.entity.MarketAssetEntity
 
 @Database(
-    entities = [CryptoEntity::class],
-    version = 1,
+    entities = [WatchlistEntity::class, MarketAssetEntity::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class CryptoDatabase : RoomDatabase() {
-    abstract fun cryptoDao(): CryptoDao
+    abstract fun watchlistDao(): WatchlistDao
+    abstract fun marketAssetDao(): MarketAssetDao
 
     companion object {
         const val DATABASE_NAME = "crypto_binance.db"

@@ -3,7 +3,8 @@ package com.example.stocktracker.core.di
 import android.content.Context
 import androidx.room.Room
 import com.example.stocktracker.data.local.CryptoDatabase
-import com.example.stocktracker.data.local.dao.CryptoDao
+import com.example.stocktracker.data.local.dao.WatchlistDao
+import com.example.stocktracker.data.local.dao.MarketAssetDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,10 +24,15 @@ object DatabaseModule {
         context,
         CryptoDatabase::class.java,
         CryptoDatabase.DATABASE_NAME,
-    ).build()
+    ).fallbackToDestructiveMigration(dropAllTables = true).build()
 
     @Provides
     @Singleton
-    fun provideCryptoDao(database: CryptoDatabase): CryptoDao =
-        database.cryptoDao()
+    fun provideWatchlistDao(database: CryptoDatabase): WatchlistDao =
+        database.watchlistDao()
+
+    @Provides
+    @Singleton
+    fun provideMarketAssetDao(database: CryptoDatabase): MarketAssetDao =
+        database.marketAssetDao()
 }

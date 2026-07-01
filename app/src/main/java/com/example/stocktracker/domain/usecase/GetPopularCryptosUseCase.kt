@@ -10,10 +10,9 @@ class GetPopularCryptosUseCase @Inject constructor(
     private val repository: CryptoRepository,
 ) {
     suspend operator fun invoke(): Result<List<CryptoAsset>> = runCatching {
-        val snapshot = repository.getMarketSnapshot().getOrThrow()
-        snapshot.assets.asSequence()
+        val assets = repository.getMarketSnapshot().getOrThrow()
+        assets.asSequence()
             .filter { (it.volumeUsd24Hr ?: 0.0) > 0.0 }
-            .sortedByDescending { it.volumeUsd24Hr }
             .take(POPULAR_LIMIT)
             .toList()
     }

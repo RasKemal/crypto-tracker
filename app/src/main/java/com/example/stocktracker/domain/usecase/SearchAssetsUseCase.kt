@@ -13,8 +13,8 @@ class SearchAssetsUseCase @Inject constructor(
         val q = query.trim().uppercase()
         require(q.isNotBlank())
 
-        val snapshot = repository.getMarketSnapshot().getOrThrow()
-        snapshot.assets.asSequence()
+        val assets = repository.getMarketSnapshot().getOrThrow()
+        assets.asSequence()
             .map { it to scoreMatch(it, q) }
             .filter { it.second > 0 }
             .sortedByDescending { it.second }
