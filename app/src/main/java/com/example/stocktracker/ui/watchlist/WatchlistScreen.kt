@@ -106,18 +106,6 @@ fun WatchlistContent(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
-        uiState.bannerMessageRes?.let { messageRes ->
-            Text(
-                text = stringResource(messageRes),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                textAlign = TextAlign.Center,
-            )
-        }
-
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 uiState.isLoading -> WatchlistLoadingView()

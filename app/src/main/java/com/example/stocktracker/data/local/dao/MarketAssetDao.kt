@@ -15,6 +15,9 @@ interface MarketAssetDao {
     @Query("SELECT * FROM market_assets WHERE volumeUsd24Hr > 0 ORDER BY volumeUsd24Hr DESC LIMIT :limit")
     suspend fun getPopularAssets(limit: Int = 10): List<MarketAssetEntity>
 
+    @Query("SELECT * FROM market_assets WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): MarketAssetEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(assets: List<MarketAssetEntity>)
 

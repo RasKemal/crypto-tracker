@@ -3,7 +3,6 @@ package com.example.stocktracker.ui.watchlist
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.stocktracker.R
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
@@ -37,10 +36,8 @@ class WatchlistViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _localQuery = MutableStateFlow("")
-    private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
-    private val _quotes = MutableStateFlow<Map<String, CryptoAsset?>>(emptyMap())
-    private val _bannerMessageRes = MutableStateFlow<Int?>(null)
     private val _livePrices = MutableStateFlow<Map<String, PriceDisplayUiModel>>(emptyMap())
+    private val liveTicks = mutableMapOf<String, LivePrice>()
 
     val livePrices: StateFlow<Map<String, PriceDisplayUiModel>> = _livePrices
 
@@ -48,8 +45,8 @@ class WatchlistViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val uiState: StateFlow<WatchlistUiState> = combine(
-        watchlist, _localQuery, _bannerMessageRes,
-    ) { assets, query, bannerRes ->
+        watchlist, _localQuery,
+    ) { assets, query ->
         if (assets == null) return@combine WatchlistUiState(isLoading = true)
 
         val filtered = if (query.isBlank()) assets
@@ -63,7 +60,6 @@ class WatchlistViewModel @Inject constructor(
             localQuery = query,
             items = filtered.map { asset -> asset.toCryptoAssetUiModel() },
             isEmpty = assets.isEmpty(),
-            bannerMessageRes = bannerRes,
         )
     }.stateIn(
         viewModelScope,
@@ -79,12 +75,9 @@ class WatchlistViewModel @Inject constructor(
                 if (ids.isEmpty()) flowOf<LivePrice>()
                 else repository.observeLivePrices(ids)
             }
-            .catch {
-                _bannerMessageRes.value = R.string.banner_live_feed_disconnected
-            }
+            .catch { Log.e(TAG, "live tick flow error", it) }
             .onEach {
-                _bannerMessageRes.value = null
-                _liveTicks.update { map -> map + (it.id to it) }
+                liveTicks[it.id] = it
                 syncLivePrice(it.id)
             }
             .launchIn(viewModelScope)
@@ -93,13 +86,9 @@ class WatchlistViewModel @Inject constructor(
             .onEach { items ->
                 if (items == null) return@onEach
                 val ids = items.map(CryptoAsset::id).toSet()
-                _quotes.update { it.filterKeys { key -> key in ids } }
                 _livePrices.update { it.filterKeys { key -> key in ids } }
-                _liveTicks.update { it.filterKeys { key -> key in ids } }
-                items.forEach { asset ->
-                    if (asset.id !in _quotes.value) fetchQuote(asset.id)
-                    else syncLivePrice(asset.id)
-                }
+                liveTicks.keys.retainAll(ids)
+                items.forEach { asset -> syncLivePrice(asset.id) }
             }
             .launchIn(viewModelScope)
     }
@@ -111,35 +100,15 @@ class WatchlistViewModel @Inject constructor(
         }
     }
 
-    private fun fetchQuote(id: String) {
-        viewModelScope.launch {
-            if (_quotes.value[id] != null) return@launch
-            syncLivePrice(id)
-
-            repository.getAsset(id)
-                .onSuccess { asset ->
-                    _quotes.update { it + (id to asset) }
-                    syncLivePrice(id)
-                }
-                .onFailure { e ->
-                    Log.w(TAG, "getAsset($id) failed: ${e.message}")
-                    _quotes.update { it + (id to null) }
-                    syncLivePrice(id)
-                }
-        }
-    }
-
     private fun syncLivePrice(id: String) {
-        if (watchlist.value.orEmpty().none { it.id == id }) return
-        val tick = _liveTicks.value[id]
-        val cryptoAsset = _quotes.value[id]
-        val cryptoAssetFailed = _quotes.value.containsKey(id) && cryptoAsset == null
+        val asset = watchlist.value.orEmpty().firstOrNull { it.id == id } ?: return
+        val tick = liveTicks[id]
+        val cryptoAsset = asset.takeIf { it.priceUsd != 0.0 }
         _livePrices.update { prices ->
             prices + (id to mapLivePrice(
                 tick = tick,
                 asset = cryptoAsset,
-                assetFailed = cryptoAssetFailed,
-                isLoading = !_quotes.value.containsKey(id) && tick == null,
+                isLoading = tick == null && cryptoAsset == null,
             ))
         }
     }
@@ -147,9 +116,8 @@ class WatchlistViewModel @Inject constructor(
     private fun removeAsset(id: String) {
         viewModelScope.launch {
             repository.removeFromWatchlist(id)
-            _quotes.update { it - id }
             _livePrices.update { it - id }
-            _liveTicks.update { it - id }
+            liveTicks.remove(id)
         }
     }
 }

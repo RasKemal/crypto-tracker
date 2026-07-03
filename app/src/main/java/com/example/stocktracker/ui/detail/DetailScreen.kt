@@ -64,10 +64,10 @@ fun DetailScreen(
     viewModel: DetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val livePrices = viewModel.livePrices.collectAsStateWithLifecycle()
+    val livePrice = viewModel.livePrice.collectAsStateWithLifecycle()
     DetailContent(
         uiState = uiState,
-        livePrices = livePrices,
+        livePrice = livePrice,
         onBack = onBack,
         onEvent = viewModel::onEvent,
     )
@@ -77,7 +77,7 @@ fun DetailScreen(
 @Composable
 fun DetailContent(
     uiState: DetailUiState,
-    livePrices: State<Map<String, PriceDisplayUiModel>>,
+    livePrice: State<PriceDisplayUiModel>,
     onBack: () -> Unit,
     onEvent: (DetailEvent) -> Unit,
     modifier: Modifier = Modifier,
@@ -140,9 +140,8 @@ fun DetailContent(
                 )
                 is LoadState.Success -> DetailBody(
                     symbol = uiState.symbol,
-                    assetId = uiState.id,
                     content = content.data,
-                    livePrices = livePrices,
+                    livePrice = livePrice,
                 )
             }
         }
@@ -152,9 +151,8 @@ fun DetailContent(
 @Composable
 private fun DetailBody(
     symbol: String,
-    assetId: String,
     content: DetailStableUiModel,
-    livePrices: State<Map<String, PriceDisplayUiModel>>,
+    livePrice: State<PriceDisplayUiModel>,
 ) {
     Column(
         modifier = Modifier
@@ -177,7 +175,7 @@ private fun DetailBody(
             }
         }
 
-        DetailPriceSection(livePrices = livePrices, assetId = assetId)
+        DetailPriceSection(livePrice = livePrice)
 
         StatGroup(title = stringResource(R.string.detail_range_title), rows = content.rangeStats)
         StatGroup(title = stringResource(R.string.detail_activity_title), rows = content.activityStats)
@@ -188,10 +186,9 @@ private fun DetailBody(
 
 @Composable
 private fun DetailPriceSection(
-    livePrices: State<Map<String, PriceDisplayUiModel>>,
-    assetId: String,
+    livePrice: State<PriceDisplayUiModel>,
 ) {
-    val price = livePrices.value[assetId] ?: PriceDisplayUiModel.Loading
+    val price = livePrice.value
     Column {
         Text(
             stringResource(R.string.detail_price_label),
@@ -311,15 +308,13 @@ private fun DetailPreview() {
                 ),
                 isInWatchlist = true,
             ),
-            livePrices = remember {
+            livePrice = remember {
                 mutableStateOf(
-                    mapOf(
-                        "BTCUSDT" to PriceDisplayUiModel(
-                            formattedPrice = "\$67,400.10",
-                            formattedChange = "%2,62",
-                            isPositive = true,
-                            priceUsd = 67_400.10,
-                        ),
+                    PriceDisplayUiModel(
+                        formattedPrice = "\$67,400.10",
+                        formattedChange = "%2,62",
+                        isPositive = true,
+                        priceUsd = 67_400.10,
                     ),
                 )
             },

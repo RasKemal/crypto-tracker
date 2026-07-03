@@ -63,7 +63,11 @@ class BinanceCryptoRepositoryImpl @Inject constructor(
     }.onFailure { e -> Log.w(TAG, "getAsset($id) failed: ${e.message}") }
 
     override fun getWatchlist(): Flow<List<CryptoAsset>> =
-        dao.observeWatchlist().map { entities -> entities.map { it.toDomain() } }
+        dao.observeWatchlist().map { entities ->
+            entities.map { entity ->
+                marketAssetDao.getById(entity.id)?.toDomain() ?: entity.toDomain()
+            }
+        }
 
     override fun observeLivePrices(ids: List<String>): Flow<LivePrice> =
         streamClient.observeTickers(ids)

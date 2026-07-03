@@ -30,7 +30,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "DetailVM"
-private const val SNAPSHOT_REFRESH_INTERVAL_MS = 60_000L
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
@@ -50,11 +49,11 @@ class DetailViewModel @Inject constructor(
             .ifBlank { assetId }
 
     private val _asset = MutableStateFlow<CryptoAsset?>(null)
-    private val _liveTick = MutableStateFlow<LivePrice?>(null)
+    private var liveTick: LivePrice? = null
     private val _content = MutableStateFlow<LoadState<CryptoAsset>>(LoadState.Loading)
-    private val _livePrices = MutableStateFlow<Map<String, PriceDisplayUiModel>>(emptyMap())
+    private val _livePrice = MutableStateFlow(PriceDisplayUiModel.Loading)
 
-    val livePrices: StateFlow<Map<String, PriceDisplayUiModel>> = _livePrices
+    val livePrice: StateFlow<PriceDisplayUiModel> = _livePrice
 
     private val watchlistIds: StateFlow<Set<String>> = repository.getWatchlist()
         .map { list -> list.map(CryptoAsset::id).toSet() }
@@ -97,14 +96,12 @@ class DetailViewModel @Inject constructor(
             .catch { Log.e(TAG, "live tick flow error", it) }
             .onEach { tick ->
                 if (tick.id == assetId) {
-                    _liveTick.value = tick
+                    liveTick = tick
                     syncLivePrice()
                 }
             }
             .launchIn(viewModelScope)
 
-        snapshotRefreshFlow()
-            .launchIn(viewModelScope)
     }
 
     fun onEvent(event: DetailEvent) {
@@ -114,13 +111,6 @@ class DetailViewModel @Inject constructor(
         }
     }
 
-    private fun snapshotRefreshFlow() = flow {
-        while (true) {
-            delay(SNAPSHOT_REFRESH_INTERVAL_MS)
-            loadAsset(showLoading = false)
-            emit(Unit)
-        }
-    }
 
     private fun loadAsset(showLoading: Boolean = true) {
         viewModelScope.launch {
@@ -144,9 +134,7 @@ class DetailViewModel @Inject constructor(
 
     private fun syncLivePrice() {
         val quote = _asset.value ?: return
-        _livePrices.value = mapOf(
-            assetId to mapLivePrice(tick = _liveTick.value, quote = quote),
-        )
+        _livePrice.value = mapLivePrice(tick = liveTick, asset = quote)
     }
 
     private fun toggleWatchlist() {
