@@ -4,10 +4,8 @@ import com.example.stocktracker.data.local.entity.WatchlistEntity
 import com.example.stocktracker.data.local.entity.MarketAssetEntity
 import com.example.stocktracker.data.remote.dto.Ticker24hDto
 import com.example.stocktracker.domain.model.CryptoAsset
-import com.example.stocktracker.domain.util.isUsdStableQuote
-import com.example.stocktracker.domain.util.stripUsdStableQuote
 
-internal fun Ticker24hDto.toDomain(): CryptoAsset {
+fun Ticker24hDto.toDomain(): CryptoAsset {
     val base = stripUsdStableQuote(symbol)
     val quote = symbol.removePrefix(base)
     return CryptoAsset(
@@ -24,7 +22,7 @@ internal fun Ticker24hDto.toDomain(): CryptoAsset {
     )
 }
 
-internal fun Ticker24hDto.toMarketEntity(): MarketAssetEntity? {
+fun Ticker24hDto.toMarketEntity(): MarketAssetEntity? {
     if (symbol.length <= 3) return null
     val base = stripUsdStableQuote(symbol)
     val quote = symbol.removePrefix(base)
@@ -63,3 +61,13 @@ fun CryptoAsset.toWatchlistEntity(): WatchlistEntity = WatchlistEntity(
     symbol = symbol,
     name = name,
 )
+
+val USD_STABLE_QUOTES: List<String> = listOf("USDT", "USDC", "FDUSD")
+
+fun String.isUsdStableQuote(): Boolean = this in USD_STABLE_QUOTES
+
+fun stripUsdStableQuote(symbol: String): String =
+    USD_STABLE_QUOTES
+        .firstOrNull { symbol.endsWith(it) }
+        ?.let { symbol.dropLast(it.length) }
+        ?: symbol

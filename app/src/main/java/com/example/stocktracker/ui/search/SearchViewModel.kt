@@ -3,18 +3,16 @@ package com.example.stocktracker.ui.search
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.stocktracker.R
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
-import com.example.stocktracker.domain.usecase.GetPopularCryptosUseCase
-import com.example.stocktracker.domain.usecase.SearchCryptosUseCase
-import com.example.stocktracker.ui.util.toUiMessage
-import com.example.stocktracker.R
+import com.example.stocktracker.ui.model.CryptoAssetUiModel
+import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.util.LoadState
 import com.example.stocktracker.ui.util.mapLivePrice
 import com.example.stocktracker.ui.util.toCryptoAssetUiModel
-import com.example.stocktracker.ui.model.CryptoAssetUiModel
-import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.util.toUiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -43,15 +41,13 @@ private const val SEARCH_DEBOUNCE_MS = 350L
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: CryptoRepository,
-    private val searchCryptos: SearchCryptosUseCase,
-    private val getPopularCryptos: GetPopularCryptosUseCase,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     private val _isShowingPopular = MutableStateFlow(true)
     private val _content = MutableStateFlow<LoadState<List<CryptoAsset>>>(LoadState.Loading)
-    private val _liveTicks = MutableStateFlow<Map<String, LivePrice>>(emptyMap())
     private val _livePrices = MutableStateFlow<Map<String, PriceDisplayUiModel>>(emptyMap())
+    private val liveTicks = mutableMapOf<String, LivePrice>()
 
     val livePrices: StateFlow<Map<String, PriceDisplayUiModel>> = _livePrices
 
@@ -71,9 +67,7 @@ class SearchViewModel @Inject constructor(
             is LoadState.Error -> LoadState.Error(content.message)
             is LoadState.Success -> LoadState.Success(
                 content.data.map { asset ->
-                    asset.toCryptoAssetUiModel(
-                        isInWatchlist = asset.id in watchlist,
-                    )
+                    asset.toCryptoAssetUiModel(isInWatchlist = asset.id in watchlist)
                 },
             )
         }
@@ -110,7 +104,7 @@ class SearchViewModel @Inject constructor(
             }
             .catch { Log.e(TAG, "live prices flow error", it) }
             .onEach { tick ->
-                _liveTicks.update { it + (tick.id to tick) }
+                liveTicks[tick.id] = tick
                 syncLivePrice(tick.id)
             }
             .launchIn(viewModelScope)
@@ -127,16 +121,14 @@ class SearchViewModel @Inject constructor(
     private fun loadPopular() {
         viewModelScope.launch {
             _content.value = LoadState.Loading
-            getPopularCryptos()
+            repository.getPopularAssets()
                 .onSuccess { popular ->
                     applySnapshot(popular, showingPopular = true)
                 }
                 .onFailure { e ->
                     Log.e(TAG, "loadPopular failed", e)
                     _livePrices.value = emptyMap()
-                    _content.value = LoadState.Error(
-                        e.toUiMessage(R.string.error_popular_assets),
-                    )
+                    _content.value = LoadState.Error(e.toUiMessage(R.string.error_popular_assets))
                 }
         }
     }
@@ -144,7 +136,7 @@ class SearchViewModel @Inject constructor(
     private fun performSearch(query: String) {
         viewModelScope.launch {
             _content.value = LoadState.Loading
-            searchCryptos(query)
+            repository.searchAssets(query)
                 .onSuccess { results ->
                     applySnapshot(results, showingPopular = false)
                 }
@@ -152,9 +144,7 @@ class SearchViewModel @Inject constructor(
                     Log.e(TAG, "searchAssets(\"$query\") failed", e)
                     _livePrices.value = emptyMap()
                     _isShowingPopular.value = false
-                    _content.value = LoadState.Error(
-                        e.toUiMessage(R.string.error_search),
-                    )
+                    _content.value = LoadState.Error(e.toUiMessage(R.string.error_search))
                 }
         }
     }
@@ -163,26 +153,18 @@ class SearchViewModel @Inject constructor(
         _isShowingPopular.value = showingPopular
         _content.value = LoadState.Success(assets)
         _livePrices.value = assets.associate { asset ->
-            val tick = _liveTicks.value[asset.id]
-            val quote = asset.takeIf { it.priceUsd != 0.0 }
-            asset.id to mapLivePrice(
-                tick = tick,
-                quote = quote,
-                isLoading = tick == null && quote == null,
-            )
+            val tick = liveTicks[asset.id]
+            val cryptoAsset = asset.takeIf { it.priceUsd != 0.0 }
+            asset.id to mapLivePrice(tick = tick, asset = cryptoAsset, isLoading = tick == null && cryptoAsset == null)
         }
     }
 
     private fun syncLivePrice(id: String) {
         val asset = assets.firstOrNull { it.id == id } ?: return
-        val tick = _liveTicks.value[id]
-        val quote = asset.takeIf { it.priceUsd != 0.0 }
+        val tick = liveTicks[id]
+        val cryptoAsset = asset.takeIf { it.priceUsd != 0.0 }
         _livePrices.update { prices ->
-            prices + (id to mapLivePrice(
-                tick = tick,
-                quote = quote,
-                isLoading = tick == null && quote == null,
-            ))
+            prices + (id to mapLivePrice(tick = tick, asset = cryptoAsset, isLoading = tick == null && cryptoAsset == null))
         }
     }
 

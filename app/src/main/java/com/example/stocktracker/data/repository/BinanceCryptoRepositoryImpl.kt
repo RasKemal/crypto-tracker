@@ -28,13 +28,15 @@ class BinanceCryptoRepositoryImpl @Inject constructor(
     private val preferences: AppPreferencesRepository,
 ) : CryptoRepository {
 
-    override suspend fun getMarketSnapshot(): Result<List<CryptoAsset>> = runCatching {
+    override suspend fun getPopularAssets(): Result<List<CryptoAsset>> = runCatching {
         refreshMarketIfStale()
-        val entities = marketAssetDao.getAll()
-        entities
-            .map { it.toDomain() }
-            .distinctBy { it.symbol }
-    }.onFailure { e -> Log.e(TAG, "getMarketSnapshot failed", e) }
+        marketAssetDao.getPopularAssets().map { it.toDomain() }
+    }.onFailure { e -> Log.e(TAG, "getPopularAssets failed", e) }
+
+    override suspend fun searchAssets(query: String): Result<List<CryptoAsset>> = runCatching {
+        refreshMarketIfStale()
+        marketAssetDao.searchAssets(query).map { it.toDomain() }
+    }.onFailure { e -> Log.e(TAG, "searchAssets(\"$query\") failed", e) }
 
     private suspend fun refreshMarketIfStale() {
         val cached = marketAssetDao.getAll()

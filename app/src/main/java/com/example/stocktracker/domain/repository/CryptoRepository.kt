@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.Flow
 
 interface CryptoRepository {
 
-    suspend fun getMarketSnapshot(): Result<List<CryptoAsset>>
+    suspend fun getPopularAssets(): Result<List<CryptoAsset>>
+
+    suspend fun searchAssets(query: String): Result<List<CryptoAsset>>
 
     suspend fun getAsset(id: String): Result<CryptoAsset>
 

@@ -32,28 +32,30 @@ fun CryptoAsset.toDetailStableUiModel(): DetailStableUiModel =
 
 fun mapLivePrice(
     tick: LivePrice?,
-    quote: CryptoAsset?,
-    quoteFailed: Boolean = false,
+    asset: CryptoAsset?,
+    assetFailed: Boolean = false,
     isLoading: Boolean = false,
 ): PriceDisplayUiModel {
-    if (tick != null) {
-        val change = tick.changePercent24Hr ?: quote?.changePercent24Hr ?: 0.0
+    tick?.let {
+        val change = it.changePercent24Hr ?: asset?.changePercent24Hr ?: 0.0
         return PriceDisplayUiModel(
-            formattedPrice = tick.price.formatUsd(),
+            formattedPrice = it.price.formatUsd(),
             formattedChange = change.formatChangePercent(),
             isPositive = change >= 0.0,
-            priceUsd = tick.price,
+            priceUsd = it.price,
         )
     }
-    if (quote != null) {
+
+    asset?.let {
         return PriceDisplayUiModel(
-            formattedPrice = quote.priceUsd.formatUsd(),
-            formattedChange = quote.changePercent24Hr.formatChangePercent(),
-            isPositive = quote.changePercent24Hr >= 0.0,
-            priceUsd = quote.priceUsd,
+            formattedPrice = it.priceUsd.formatUsd(),
+            formattedChange = it.changePercent24Hr.formatChangePercent(),
+            isPositive = it.changePercent24Hr >= 0.0,
+            priceUsd = it.priceUsd,
         )
     }
-    if (quoteFailed) {
+
+    if (assetFailed) {
         return PriceDisplayUiModel(
             formattedPrice = "--",
             formattedChange = "",

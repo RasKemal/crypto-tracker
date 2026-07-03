@@ -4,12 +4,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stocktracker.R
-import com.example.stocktracker.ui.util.mapLivePrice
-import com.example.stocktracker.ui.util.toCryptoAssetUiModel
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
+import com.example.stocktracker.ui.util.mapLivePrice
+import com.example.stocktracker.ui.util.toCryptoAssetUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,9 +61,7 @@ class WatchlistViewModel @Inject constructor(
         WatchlistUiState(
             isLoading = false,
             localQuery = query,
-            items = filtered.map { asset ->
-                asset.toCryptoAssetUiModel()
-            },
+            items = filtered.map { asset -> asset.toCryptoAssetUiModel() },
             isEmpty = assets.isEmpty(),
             bannerMessageRes = bannerRes,
         )
@@ -134,13 +132,13 @@ class WatchlistViewModel @Inject constructor(
     private fun syncLivePrice(id: String) {
         if (watchlist.value.orEmpty().none { it.id == id }) return
         val tick = _liveTicks.value[id]
-        val quote = _quotes.value[id]
-        val quoteFailed = _quotes.value.containsKey(id) && quote == null
+        val cryptoAsset = _quotes.value[id]
+        val cryptoAssetFailed = _quotes.value.containsKey(id) && cryptoAsset == null
         _livePrices.update { prices ->
             prices + (id to mapLivePrice(
                 tick = tick,
-                quote = quote,
-                quoteFailed = quoteFailed,
+                asset = cryptoAsset,
+                assetFailed = cryptoAssetFailed,
                 isLoading = !_quotes.value.containsKey(id) && tick == null,
             ))
         }

@@ -4,16 +4,16 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.stocktracker.R
 import com.example.stocktracker.domain.model.CryptoAsset
 import com.example.stocktracker.domain.model.LivePrice
 import com.example.stocktracker.domain.repository.CryptoRepository
-import com.example.stocktracker.R
-import com.example.stocktracker.ui.util.LoadState
-import com.example.stocktracker.ui.util.toUiMessage
-import com.example.stocktracker.ui.util.mapLivePrice
-import com.example.stocktracker.ui.util.toDetailStableUiModel
 import com.example.stocktracker.ui.model.PriceDisplayUiModel
 import com.example.stocktracker.ui.navigation.AppDestination
+import com.example.stocktracker.ui.util.LoadState
+import com.example.stocktracker.ui.util.mapLivePrice
+import com.example.stocktracker.ui.util.toDetailStableUiModel
+import com.example.stocktracker.ui.util.toUiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -136,9 +136,7 @@ class DetailViewModel @Inject constructor(
                 .onFailure { e ->
                     Log.e(TAG, "getAsset($assetId) failed", e)
                     if (_asset.value == null) {
-                        _content.value = LoadState.Error(
-                            e.toUiMessage(R.string.error_asset_data),
-                        )
+                        _content.value = LoadState.Error(e.toUiMessage(R.string.error_asset_data))
                     }
                 }
         }
@@ -147,10 +145,7 @@ class DetailViewModel @Inject constructor(
     private fun syncLivePrice() {
         val quote = _asset.value ?: return
         _livePrices.value = mapOf(
-            assetId to mapLivePrice(
-                tick = _liveTick.value,
-                quote = quote,
-            ),
+            assetId to mapLivePrice(tick = _liveTick.value, quote = quote),
         )
     }
 
