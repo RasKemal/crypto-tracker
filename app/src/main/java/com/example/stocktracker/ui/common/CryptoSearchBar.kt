@@ -100,6 +100,6 @@ private fun CryptoSearchBarEmptyPreview() {
 @Composable
 private fun CryptoSearchBarFilledPreview() {
     StockTrackerTheme(darkTheme = true) {
-        CryptoSearchBar(query = "Apple", onQueryChange = {}, modifier = Modifier.padding(16.dp))
+        CryptoSearchBar(query = "BTC", onQueryChange = {}, modifier = Modifier.padding(16.dp))
     }
 }

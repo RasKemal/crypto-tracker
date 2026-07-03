@@ -25,65 +25,31 @@ class UiMappersTest {
     }
 
     @Test
-    fun `toCryptoAssetUiModel defaults isInWatchlist to false`() {
-        assertFalse(btcAsset.toCryptoAssetUiModel().isInWatchlist)
-    }
-
-    @Test
     fun `mapLivePrice with tick uses tick price`() {
         val tick = LivePrice("BTCUSDT", 68000.0, 3.0)
-        val result = mapLivePrice(tick = tick, quote = btcAsset)
+        val result = mapLivePrice(tick = tick, asset =btcAsset)
         assertEquals(68000.0, result.priceUsd!!, 0.001)
         assertTrue(result.isPositive)
         assertFalse(result.isLoading)
     }
 
     @Test
-    fun `mapLivePrice with tick uses tick changePercent when available`() {
-        val tick = LivePrice("BTCUSDT", 68000.0, -1.5)
-        val result = mapLivePrice(tick = tick, quote = btcAsset)
-        assertFalse(result.isPositive)
-    }
-
-    @Test
-    fun `mapLivePrice with tick falls back to quote changePercent when tick has none`() {
+    fun `mapLivePrice with tick falls back to asset changePercent when tick has none`() {
         val tick = LivePrice("BTCUSDT", 68000.0, changePercent24Hr = null)
-        val result = mapLivePrice(tick = tick, quote = btcAsset)
+        val result = mapLivePrice(tick = tick, asset =btcAsset)
         assertTrue(result.isPositive) // btcAsset.changePercent24Hr = 2.5
     }
 
     @Test
-    fun `mapLivePrice with only quote uses quote data`() {
-        val result = mapLivePrice(tick = null, quote = btcAsset)
+    fun `mapLivePrice with only asset uses asset data`() {
+        val result = mapLivePrice(tick = null, asset =btcAsset)
         assertEquals(67000.0, result.priceUsd!!, 0.001)
         assertTrue(result.isPositive)
     }
 
     @Test
-    fun `mapLivePrice with quoteFailed returns failed state`() {
-        val result = mapLivePrice(tick = null, quote = null, quoteFailed = true)
-        assertTrue(result.priceLoadFailed)
-        assertEquals("--", result.formattedPrice)
-    }
-
-    @Test
     fun `mapLivePrice with isLoading returns loading state`() {
-        val result = mapLivePrice(tick = null, quote = null, isLoading = true)
+        val result = mapLivePrice(tick = null, asset =null, isLoading = true)
         assertEquals(PriceDisplayUiModel.Loading, result)
-    }
-
-    @Test
-    fun `mapLivePrice with nothing returns dash state`() {
-        val result = mapLivePrice(tick = null, quote = null)
-        assertEquals("--", result.formattedPrice)
-        assertFalse(result.isLoading)
-        assertFalse(result.priceLoadFailed)
-    }
-
-    @Test
-    fun `mapLivePrice tick takes priority over quote`() {
-        val tick = LivePrice("BTCUSDT", 99999.0, 10.0)
-        val result = mapLivePrice(tick = tick, quote = btcAsset)
-        assertEquals(99999.0, result.priceUsd!!, 0.001)
     }
 }

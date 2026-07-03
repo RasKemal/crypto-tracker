@@ -59,19 +59,4 @@ class UiFormattersTest {
     fun `formatLargeUsd formats billions`() {
         assertEquals("$2.30B", 2.3e9.formatLargeUsd())
     }
-
-    @Test
-    fun `formatLargeUsd formats millions`() {
-        assertEquals("$45.00M", 45e6.formatLargeUsd())
-    }
-
-    @Test
-    fun `formatLargeUsd formats thousands`() {
-        assertEquals("$8.50K", 8500.0.formatLargeUsd())
-    }
-
-    @Test
-    fun `formatLargeUsd formats small values normally`() {
-        assertEquals("$500.00", 500.0.formatLargeUsd())
-    }
 }

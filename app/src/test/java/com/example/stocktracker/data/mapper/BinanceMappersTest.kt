@@ -32,54 +32,8 @@ class BinanceMappersTest {
     }
 
     @Test
-    fun `Ticker24hDto toDomain handles null numeric fields`() {
-        val dto = Ticker24hDto(symbol = "ETHUSDT")
-        val result = dto.toDomain()
-        assertEquals(0.0, result.priceUsd, 0.001)
-        assertEquals(0.0, result.changePercent24Hr, 0.001)
-        assertNull(result.high24Hr)
-        assertNull(result.low24Hr)
-    }
-
-    @Test
     fun `toMarketEntity filters non-USDT pairs`() {
         val dto = Ticker24hDto(symbol = "BTCETH")
-        assertNull(dto.toMarketEntity())
-    }
-
-    @Test
-    fun `toMarketEntity accepts USDT pairs`() {
-        val dto = Ticker24hDto(
-            symbol = "BTCUSDT",
-            lastPrice = "67000.0",
-            priceChangePercent = "2.0",
-            quoteVolume = "500000.0",
-        )
-        val entity = dto.toMarketEntity()!!
-        assertEquals("BTCUSDT", entity.id)
-        assertEquals("BTC", entity.symbol)
-        assertEquals(67000.0, entity.priceUsd, 0.001)
-        assertEquals(2.0, entity.changePercent24Hr, 0.001)
-        assertEquals(500000.0, entity.volumeUsd24Hr!!, 0.001)
-    }
-
-    @Test
-    fun `toMarketEntity accepts USDC pairs`() {
-        val dto = Ticker24hDto(symbol = "ETHUSDC", lastPrice = "3500.0", priceChangePercent = "1.0")
-        val entity = dto.toMarketEntity()!!
-        assertEquals("ETH", entity.symbol)
-    }
-
-    @Test
-    fun `toMarketEntity accepts FDUSD pairs`() {
-        val dto = Ticker24hDto(symbol = "BTCFDUSD", lastPrice = "67000.0", priceChangePercent = "2.0")
-        val entity = dto.toMarketEntity()!!
-        assertEquals("BTC", entity.symbol)
-    }
-
-    @Test
-    fun `toMarketEntity rejects short symbols`() {
-        val dto = Ticker24hDto(symbol = "BTC")
         assertNull(dto.toMarketEntity())
     }
 

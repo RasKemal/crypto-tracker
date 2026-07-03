@@ -209,33 +209,7 @@ private fun WatchlistNoResultsView(query: String) {
     }
 }
 
-private val previewWatchlistItems = listOf(
-    CryptoAssetUiModel("BTCUSDT", "BTC", "Bitcoin"),
-    CryptoAssetUiModel("ETHUSDT", "ETH", "Ethereum"),
-)
 
-@Preview(name = "Watchlist — Populated (Dark)", showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-private fun WatchlistPopulatedDarkPreview() {
-    val livePrices = remember {
-        mutableStateOf(
-            mapOf(
-                "BTCUSDT" to PriceDisplayUiModel("\$67,320.45", "%2,45", true, 67320.45),
-                "ETHUSDT" to PriceDisplayUiModel.Loading,
-            ),
-        )
-    }
-    StockTrackerTheme(darkTheme = true) {
-        WatchlistContent(
-            uiState = WatchlistUiState(isEmpty = false, items = previewWatchlistItems),
-            livePrices = livePrices,
-            isDarkTheme = true,
-            onThemeToggle = {},
-            onAssetClick = {},
-            onEvent = {},
-        )
-    }
-}
 
 @Preview(name = "Watchlist — Empty (Dark)", showBackground = true, backgroundColor = 0xFF000000)
 @Composable
